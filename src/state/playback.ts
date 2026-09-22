@@ -1,23 +1,59 @@
 import { useEffect } from 'react';
-import { startPlayback, stopPlayback, updatePlayback, type PlayEvent } from '../audio/engine';
-import { pianoVoicing } from '../theory/voicings';
+import { renderPattern } from '../audio/patterns';
+import { startPlayback, stopPlayback, updatePlayback, type NoteStrike, type PlaybackOptions } from '../audio/engine';
+import { voiceLeadChord } from '../theory/voicings';
 import type { Song } from '../types';
-import { flattenSong } from './song';
+import { flattenDetailed, sectionLoopBounds } from './song';
 import { useStore } from './store';
 
-export function toPlayEvents(song: Song): PlayEvent[] {
-  return flattenSong(song).map((e) => ({ id: e.id, midi: pianoVoicing(e.chord), beats: e.beats }));
+/** The full note-strike list for the song: each chord voice-led from the one before it, then
+ *  expanded into its pattern's strikes (block/pulse/strum/arpeggio/bass+chord). */
+export function toNoteStrikes(song: Song): NoteStrike[] {
+  const strikes: NoteStrike[] = [];
+  let prevVoicing: number[] | null = null;
+  for (const { event, offsetBeats } of flattenDetailed(song)) {
+    const voicing = voiceLeadChord(event.chord, prevVoicing);
+    prevVoicing = voicing;
+    const upperCount = voicing.length - 1;
+    const strikesForChord = renderPattern(song.pattern, upperCount, event.beats, song.timeSig);
+    strikesForChord.forEach((s, i) => {
+      strikes.push({
+        eventId: event.id,
+        isChordStart: i === 0,
+        offsetBeats: offsetBeats + s.offset,
+        durationBeats: s.duration,
+        midi: s.noteIndices.map((idx) => voicing[idx]).filter((n): n is number => n !== undefined),
+        strumSeconds: s.strumSeconds,
+      });
+    });
+  }
+  return strikes;
+}
+
+function playbackOptions(): Omit<PlaybackOptions, 'onEvent'> {
+  const s = useStore.getState();
+  const bounds =
+    s.loopScope === 'section' ? sectionLoopBounds(s.song, s.activeSectionId) : null;
+  return {
+    bpm: s.song.bpm,
+    loop: s.loop,
+    loopStartBeats: bounds?.start,
+    loopEndBeats: bounds?.end,
+    instrument: s.song.instrument,
+    metronome: s.metronome,
+    barBeats: s.song.timeSig.beats,
+    volume: s.volume,
+  };
 }
 
 /** Start playing the song. Call from a click/tap handler so the browser allows audio. */
 export async function play(): Promise<void> {
-  const { song, loop, setPlaying, setPlayingEvent } = useStore.getState();
-  const events = toPlayEvents(song);
-  if (events.length === 0) return;
+  const { song, setPlaying, setPlayingEvent } = useStore.getState();
+  const strikes = toNoteStrikes(song);
+  if (strikes.length === 0) return;
   setPlaying(true);
-  await startPlayback(events, {
-    bpm: song.bpm,
-    loop,
+  await startPlayback(strikes, {
+    ...playbackOptions(),
     onEvent: (id) => (id === null ? setPlaying(false) : setPlayingEvent(id)),
   });
 }
@@ -32,14 +68,25 @@ export function togglePlay(): void {
   else void play();
 }
 
-/** While playing, push edits, tempo and loop changes into the running transport. */
+/** While playing, push edits, tempo, loop, instrument and pattern changes into the running transport. */
 export function useLivePlaybackSync(): void {
   useEffect(
     () =>
       useStore.subscribe((s, prev) => {
         if (!s.isPlaying) return;
-        if (s.song.sections === prev.song.sections && s.song.bpm === prev.song.bpm && s.loop === prev.loop) return;
-        updatePlayback(toPlayEvents(s.song), s.song.bpm, s.loop);
+        const relevant =
+          s.song.sections !== prev.song.sections ||
+          s.song.arrangement !== prev.song.arrangement ||
+          s.song.bpm !== prev.song.bpm ||
+          s.song.timeSig !== prev.song.timeSig ||
+          s.song.instrument !== prev.song.instrument ||
+          s.song.pattern !== prev.song.pattern ||
+          s.loop !== prev.loop ||
+          s.loopScope !== prev.loopScope ||
+          s.metronome !== prev.metronome ||
+          s.volume !== prev.volume;
+        if (!relevant) return;
+        updatePlayback(toNoteStrikes(s.song), { ...playbackOptions(), onEvent: () => {} });
       }),
     [],
   );

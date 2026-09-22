@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chordName, diatonicChord, diatonicChords, withFlavor } from './chords';
+import { chordName, diatonicChord, diatonicChords, withFlavor, withInversion } from './chords';
 import { MODES } from './scales';
 import { keyNote, startChords, suggestNext } from './suggestions';
 import type { Key, Mode } from './types';
@@ -126,6 +126,84 @@ describe('specific rules', () => {
     expect(toTonic?.reason).toContain('unstable');
     expect(keyNote(k)).toContain('diminished');
     expect(keyNote(c)).toBeNull();
+  });
+});
+
+describe('layer D: borrowed chords (modal mixture)', () => {
+  it('major key offers iv, bVI, bVII, bIII, ii° borrowed from the parallel minor, somewhere in the key', () => {
+    const c = key('C', 'major');
+    // Every borrowed chord competes for 10 slots against diatonic and secondary suggestions, so
+    // not all five show up from any one starting chord; check across every starting chord instead.
+    const borrowed = diatonicChords(c).flatMap((cur) => suggestNext(cur, c).filter((s) => s.origin === 'borrowed'));
+    const byNumeral = (n: string) => borrowed.find((s) => s.chord.numeral === n);
+    expect(chordName(byNumeral('iv')!.chord)).toBe('Fm');
+    expect(byNumeral('iv')!.reason).toContain('borrowed from minor');
+    expect(chordName(byNumeral('♭VII')!.chord)).toBe('B♭');
+    expect(byNumeral('♭VII')!.reason).toContain('rock/Mixolydian');
+    expect(chordName(byNumeral('♭VI')!.chord)).toBe('A♭');
+    expect(chordName(byNumeral('♭III')!.chord)).toBe('E♭');
+    expect(byNumeral('ii°')!.chord.quality).toBe('dim');
+  });
+  it('minor key offers a major IV borrowed from Dorian', () => {
+    const a = key('A', 'minor');
+    const list = suggestNext(diatonicChord(a, 0), a);
+    const iv = list.find((s) => s.chord.numeral === 'IV');
+    expect(iv).toBeDefined();
+    expect(chordName(iv!.chord)).toBe('D');
+    expect(iv!.origin).toBe('borrowed');
+    expect(iv!.reason).toContain('Dorian');
+  });
+  it('a mode other than major/minor offers no layer-D borrowed chords', () => {
+    const d = key('D', 'dorian');
+    const list = suggestNext(diatonicChord(d, 0), d);
+    expect(list.every((s) => s.origin !== 'borrowed' || s.reason.includes('Dorian') === false)).toBe(true);
+  });
+});
+
+describe('layer E: secondary dominants', () => {
+  const c = key('C', 'major');
+  it('from I, offers V/V and V/vi as secondary dominants', () => {
+    const list = suggestNext(diatonicChord(c, 0), c);
+    const VofV = list.find((s) => s.chord.numeral === 'V/V');
+    expect(VofV).toBeDefined();
+    expect(chordName(VofV!.chord)).toBe('D');
+    expect(VofV!.origin).toBe('secondary');
+    expect(VofV!.reason).toContain('pulling toward G');
+    expect(list.some((s) => s.chord.numeral === 'V/vi')).toBe(true);
+  });
+  it("V/IV is never suggested: a fifth above IV is the tonic, so it would just be I", () => {
+    const list = suggestNext(diatonicChord(c, 0), c);
+    expect(list.some((s) => s.chord.numeral === 'V/IV')).toBe(false);
+  });
+  it('a secondary dominant never outranks the direct move to the same chord', () => {
+    const list = suggestNext(diatonicChord(c, 0), c);
+    const V = list.find((s) => s.chord.numeral === 'V')!;
+    const VofV = list.find((s) => s.chord.numeral === 'V/V')!;
+    expect(V.score).toBeGreaterThan(VofV.score);
+  });
+  it("V/V's own top suggestion is V, resolving as expected", () => {
+    const VofV = suggestNext(diatonicChord(c, 0), c).find((s) => s.chord.numeral === 'V/V')!.chord;
+    const next = suggestNext(VofV, c);
+    expect(next[0].chord.numeral).toBe('V');
+    expect(chordName(next[0].chord)).toBe('G');
+    expect(next[0].score).toBe(1);
+    expect(next[0].reason).toContain('resolves home');
+  });
+  it('keeps its V/X numeral through a flavor or inversion change', () => {
+    const VofV = suggestNext(diatonicChord(c, 0), c).find((s) => s.chord.numeral === 'V/V')!.chord;
+    const seventh = withFlavor(VofV, '7', c);
+    expect(seventh.numeral).toBe('V7/V');
+    const inverted = withInversion(seventh, 1, c);
+    expect(inverted.numeral).toBe('V7/V');
+  });
+  it('no secondary dominant targets the tonic or a diminished/augmented chord', () => {
+    for (const cur of diatonicChords(c)) {
+      for (const s of suggestNext(cur, c)) {
+        if (s.origin !== 'secondary') continue;
+        expect(s.chord.numeral).not.toBe('V/I');
+        expect(s.chord.numeral).not.toContain('°');
+      }
+    }
   });
 });
 

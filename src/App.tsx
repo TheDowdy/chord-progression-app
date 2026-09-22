@@ -26,7 +26,7 @@ export default function App() {
   const suggestions = useMemo(() => (center ? suggestNext(center, song.key, previous) : []), [center, previous, song.key]);
   const startRing = useMemo(() => startChords(song.key), [song.key]);
 
-  const preview = (chord: ChordRef) => void previewChord(pianoVoicing(chord));
+  const preview = (chord: ChordRef) => void previewChord(pianoVoicing(chord), song.instrument);
 
   return (
     <div className="min-h-dvh pb-44 lg:pb-10">

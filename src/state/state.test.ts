@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { chordName, diatonicChord, diatonicChords, withInversion } from '../theory/chords';
-import { pianoVoicing } from '../theory/voicings';
-import { flattenSong, newSong } from './song';
+import { chordName, diatonicChord, diatonicChords, withFlavor, withInversion } from '../theory/chords';
+import { pianoVoicing, voiceLeadChord } from '../theory/voicings';
+import { flattenSong, newSong, sectionLoopBounds } from './song';
 import { selectCenter, useStore } from './store';
 
 const c = { tonic: 'C', mode: 'major' } as const;
@@ -25,6 +25,55 @@ describe('pianoVoicing', () => {
   });
 });
 
+describe('voiceLeadChord', () => {
+  it('with no previous chord, matches pianoVoicing', () => {
+    const I = diatonicChord(c, 0);
+    expect(voiceLeadChord(I, null)).toEqual(pianoVoicing(I));
+  });
+  it('holds a common tone in place: C → Am shares C and E', () => {
+    const [I, , iii, , , vi] = diatonicChords(c);
+    void iii;
+    const cVoicing = voiceLeadChord(I, null);
+    const amVoicing = voiceLeadChord(vi, cVoicing);
+    // C major = C E G, A minor = A C E: C and E should be the very same notes, not just same pitch class.
+    expect(amVoicing.filter((n) => cVoicing.includes(n)).length).toBeGreaterThanOrEqual(2);
+  });
+  it('moves less overall than always resetting to close position', () => {
+    // A 2nd-inversion I forces a big register jump if you reset to close position each time.
+    const I = diatonicChord(c, 0);
+    const chords = [I, withInversion(I, 2, c), diatonicChord(c, 3), I]; // I, I⁶₄, IV, I
+    let prev: number[] | null = null;
+    let ledMovement = 0;
+    for (const chord of chords) {
+      const v = voiceLeadChord(chord, prev);
+      if (prev) for (let i = 0; i < v.length; i++) ledMovement += Math.abs(v[i] - prev[i]);
+      prev = v;
+    }
+    let resetMovement = 0;
+    let prevReset: number[] | null = null;
+    for (const chord of chords) {
+      const v = pianoVoicing(chord);
+      if (prevReset) for (let i = 0; i < v.length; i++) resetMovement += Math.abs(v[i] - prevReset[i]);
+      prevReset = v;
+    }
+    expect(ledMovement).toBeLessThan(resetMovement);
+  });
+  it('keeps the chosen inversion in the bass', () => {
+    const I = diatonicChord(c, 0);
+    const first = withInversion(I, 1, c); // C/E
+    const v = voiceLeadChord(first, voiceLeadChord(I, null));
+    expect(v[0] % 12).toBe(4); // E
+    expect(v[1] % 12).toBe(4); // the lowest upper note is also E
+  });
+  it('stays ascending even when a flavor change adds a note (e.g. add9)', () => {
+    const I = diatonicChord(c, 0);
+    const add9 = withFlavor(I, 'add9', c);
+    const v = voiceLeadChord(add9, voiceLeadChord(I, null));
+    expect(v.length).toBe(5); // bass + 4 upper notes (triad + the 9th)
+    expect([...v].sort((a, b) => a - b)).toEqual(v);
+  });
+});
+
 describe('song helpers', () => {
   it('flattenSong follows the arrangement and repeat counts', () => {
     const song = newSong();
@@ -37,11 +86,34 @@ describe('song helpers', () => {
     sec.repeat = 2;
     expect(flattenSong(song).map((e) => e.id)).toEqual(['e1', 'e2', 'e1', 'e2']);
   });
+  it('sectionLoopBounds spans just one arrangement slot, including its own repeats', () => {
+    const song = newSong();
+    const [a, b] = diatonicChords(c);
+    const verse = song.sections[0];
+    verse.events = [
+      { id: 'e1', chord: a, beats: 4 },
+      { id: 'e2', chord: b, beats: 2 },
+    ];
+    verse.repeat = 2; // spans beats 0–12
+    const chorus = { id: 'chorus', name: 'Chorus', repeat: 1, events: [{ id: 'e3', chord: a, beats: 4 }] };
+    const withChorus = { ...song, sections: [verse, chorus], arrangement: [verse.id, chorus.id] };
+    expect(sectionLoopBounds(withChorus, verse.id)).toEqual({ start: 0, end: 12 });
+    expect(sectionLoopBounds(withChorus, chorus.id)).toEqual({ start: 12, end: 16 });
+    expect(sectionLoopBounds(withChorus, 'missing')).toBeNull();
+  });
 });
 
 describe('store', () => {
   beforeEach(() => {
-    useStore.setState({ song: newSong(c), selectedEventId: null, playingEventId: null, isPlaying: false });
+    const song = newSong(c);
+    useStore.setState({
+      song,
+      activeSectionId: song.sections[0].id,
+      selectedEventId: null,
+      playingEventId: null,
+      isPlaying: false,
+      replaceTargetId: null,
+    });
   });
   const chords = () => flattenSong(useStore.getState().song).map((e) => chordName(e.chord));
   const [I, ii, , IV, V] = diatonicChords(c);
@@ -101,5 +173,123 @@ describe('store', () => {
     expect(useStore.getState().song.bpm).toBe(300);
     useStore.getState().setBpm(5);
     expect(useStore.getState().song.bpm).toBe(30);
+  });
+
+  it('setEventBeats clamps to 1–32', () => {
+    const s = useStore.getState();
+    s.addChord(I);
+    const [e] = flattenSong(useStore.getState().song);
+    useStore.getState().setEventBeats(e.id, 0);
+    expect(flattenSong(useStore.getState().song)[0].beats).toBe(1);
+    useStore.getState().setEventBeats(e.id, 99);
+    expect(flattenSong(useStore.getState().song)[0].beats).toBe(32);
+  });
+
+  it('setEventChord replaces a placed chord in place, keeping its position', () => {
+    const s = useStore.getState();
+    s.addChord(I);
+    s.addChord(V);
+    const [first] = flattenSong(useStore.getState().song);
+    useStore.getState().setEventChord(first.id, IV);
+    expect(chords()).toEqual(['F', 'G']);
+  });
+
+  it('addSection creates a new section and adds it to the arrangement, then becomes active', () => {
+    const s = useStore.getState();
+    s.addSection('Chorus');
+    const song = useStore.getState().song;
+    expect(song.sections).toHaveLength(2);
+    expect(song.sections[1].name).toBe('Chorus');
+    expect(song.arrangement).toEqual([song.sections[0].id, song.sections[1].id]);
+    expect(useStore.getState().activeSectionId).toBe(song.sections[1].id);
+  });
+
+  it('addChord adds to the active section', () => {
+    const s = useStore.getState();
+    s.addSection('Chorus');
+    s.addChord(I);
+    const song = useStore.getState().song;
+    expect(song.sections[0].events).toHaveLength(0);
+    expect(song.sections[1].events).toHaveLength(1);
+  });
+
+  it('removeSection drops it from sections and every arrangement slot, but never the last section', () => {
+    const s = useStore.getState();
+    s.addSection('Chorus');
+    const [verse, chorus] = useStore.getState().song.sections;
+    s.addArrangementSlot(chorus.id); // Verse, Chorus, Chorus
+    s.removeSection(chorus.id);
+    const song = useStore.getState().song;
+    expect(song.sections.map((sec) => sec.id)).toEqual([verse.id]);
+    expect(song.arrangement).toEqual([verse.id]);
+    s.removeSection(verse.id); // refuses to remove the only remaining section
+    expect(useStore.getState().song.sections).toHaveLength(1);
+  });
+
+  it('duplicateSection clones events with fresh ids, independent of the original', () => {
+    const s = useStore.getState();
+    s.addChord(I);
+    const verseId = useStore.getState().song.sections[0].id;
+    s.duplicateSection(verseId);
+    const song = useStore.getState().song;
+    expect(song.sections).toHaveLength(2);
+    expect(song.sections[1].events[0].id).not.toBe(song.sections[0].events[0].id);
+    expect(chordName(song.sections[1].events[0].chord)).toBe('C');
+    // Editing the original doesn't touch the duplicate.
+    s.setEventChord(song.sections[0].events[0].id, V);
+    expect(chordName(useStore.getState().song.sections[1].events[0].chord)).toBe('C');
+  });
+
+  it('reorderEvents moves a chord within its section', () => {
+    const s = useStore.getState();
+    s.addChord(I);
+    s.addChord(IV);
+    s.addChord(V);
+    const sectionId = useStore.getState().song.sections[0].id;
+    s.reorderEvents(sectionId, 0, 2);
+    expect(chords()).toEqual(['F', 'G', 'C']);
+  });
+
+  it('moveEvent relocates a chord into a different section', () => {
+    const s = useStore.getState();
+    s.addChord(I);
+    s.addSection('Chorus');
+    s.addChord(V);
+    const verseId = useStore.getState().song.sections[0].id;
+    const chorusId = useStore.getState().song.sections[1].id;
+    const eventId = useStore.getState().song.sections[0].events[0].id;
+    s.moveEvent(eventId, chorusId, 0);
+    const song = useStore.getState().song;
+    expect(song.sections.find((sec) => sec.id === verseId)!.events).toHaveLength(0);
+    expect(song.sections.find((sec) => sec.id === chorusId)!.events.map((e) => e.id)).toEqual([eventId, expect.any(String)]);
+  });
+
+  it('replace mode: the next added chord replaces the target instead of inserting', () => {
+    const s = useStore.getState();
+    s.addChord(I);
+    s.addChord(V);
+    const [first] = flattenSong(useStore.getState().song);
+    s.startReplace(first.id);
+    s.addChord(IV);
+    expect(chords()).toEqual(['F', 'G']);
+    expect(useStore.getState().replaceTargetId).toBeNull();
+  });
+
+  it('reorderArrangement reorders the playback sequence without touching section definitions', () => {
+    const s = useStore.getState();
+    s.addSection('Chorus');
+    const [verse, chorus] = useStore.getState().song.sections;
+    s.reorderArrangement(0, 1);
+    expect(useStore.getState().song.arrangement).toEqual([chorus.id, verse.id]);
+  });
+
+  it('reorderSections reorders the section definitions list (independent of the arrangement)', () => {
+    const s = useStore.getState();
+    s.addSection('Chorus');
+    const [verse, chorus] = useStore.getState().song.sections;
+    s.reorderSections(0, 1);
+    const song = useStore.getState().song;
+    expect(song.sections.map((sec) => sec.id)).toEqual([chorus.id, verse.id]);
+    expect(song.arrangement).toEqual([verse.id, chorus.id]); // unaffected
   });
 });

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { chordKey, chordName } from '../theory/chords';
 import { keyLabel } from '../theory/scales';
 import type { ChordRef, Key, Origin, Suggestion } from '../theory/types';
+import FlavorPicker from './FlavorPicker';
 
 const SIZE = 400;
 const C = SIZE / 2;
@@ -65,10 +66,17 @@ function NodeLabel({ chord, r }: { chord: ChordRef; r: number }) {
 
 export default function NodeMap({ musicKey, center, suggestions, startRing, onPreview, onAdd }: Props) {
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [flavorOpen, setFlavorOpen] = useState(false);
+  const [pendingChord, setPendingChord] = useState<ChordRef | null>(null);
   const centerId = center ? chordKey(center) : `start:${musicKey.tonic}:${musicKey.mode}`;
 
   // A new centre (or key) means a new set of nodes: clear the focused one.
   useEffect(() => setFocusId(null), [centerId]);
+  // A new focus starts fresh: any flavor tweak was for the previous node.
+  useEffect(() => {
+    setFlavorOpen(false);
+    setPendingChord(null);
+  }, [focusId]);
 
   const nodes: NodeSpec[] = useMemo(() => {
     if (center) {
@@ -210,22 +218,42 @@ export default function NodeMap({ musicKey, center, suggestions, startRing, onPr
         </g>
       </svg>
 
-      <div className="min-h-[5.5rem] px-1" aria-live="polite">
+      <div className="min-h-[5.5rem] space-y-2 px-1" aria-live="polite">
         {focused ? (
-          <div className="flex items-center gap-3 rounded-xl border border-line bg-surface p-3">
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold">
-                {chordName(focused.chord)} <span className="font-normal text-muted">({focused.chord.numeral})</span>
-              </p>
-              <p className="text-sm text-muted">{focused.reason}</p>
+          <>
+            <div className="flex items-center gap-3 rounded-xl border border-line bg-surface p-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">
+                  {chordName(pendingChord ?? focused.chord)}{' '}
+                  <span className="font-normal text-muted">({(pendingChord ?? focused.chord).numeral})</span>
+                </p>
+                <p className="text-sm text-muted">{focused.reason}</p>
+              </div>
+              <button
+                onClick={() => setFlavorOpen((v) => !v)}
+                aria-pressed={flavorOpen}
+                aria-label="Change flavor or inversion"
+                className={`shrink-0 grid size-10 place-items-center rounded-lg border text-base ${flavorOpen ? 'border-accent text-accent' : 'border-line text-muted hover:bg-surface-2'}`}
+              >
+                ⚙
+              </button>
+              <button
+                onClick={() => onAdd(pendingChord ?? focused.chord)}
+                className="shrink-0 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg"
+              >
+                + Add
+              </button>
             </div>
-            <button
-              onClick={() => onAdd(focused.chord)}
-              className="shrink-0 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-fg"
-            >
-              + Add
-            </button>
-          </div>
+            {flavorOpen && (
+              <FlavorPicker
+                chord={pendingChord ?? focused.chord}
+                musicKey={musicKey}
+                onPreview={onPreview}
+                onChoose={setPendingChord}
+                onClose={() => setFlavorOpen(false)}
+              />
+            )}
+          </>
         ) : (
           <p className="pt-2 text-center text-sm text-muted">
             {center

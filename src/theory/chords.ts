@@ -154,7 +154,7 @@ export function buildChord(spec: ChordSpec, key: Key): ChordRef {
     origin: spec.origin ?? ('diatonic' as Origin),
   };
   const chord: ChordRef = { ...partial, numeral: '' };
-  chord.numeral = numeralFor(chord, key, inversionOf(chord));
+  chord.numeral = labelFor(chord, key, inversionOf(chord));
   return chord;
 }
 
@@ -172,6 +172,29 @@ export function diatonicChords(key: Key, flavor: Flavor = 'triad'): ChordRef[] {
   return Array.from({ length: 7 }, (_, d) => diatonicChord(key, d, flavor));
 }
 
+/**
+ * The numeral for a secondary-dominant-shaped chord, e.g. 'V/V', 'V7/vi': a major triad a fifth
+ * above some diatonic major or minor degree (other than I). Null if the chord isn't shaped that
+ * way, so callers can fall back to the ordinary numeral.
+ */
+export function secondaryNumeral(chord: Pick<ChordRef, 'root' | 'quality' | 'flavor'>, key: Key): string | null {
+  if (chord.quality !== 'maj') return null;
+  const candidateRoot = Note.transpose(chord.root, '-5P');
+  for (let degree = 1; degree < 7; degree++) {
+    const target = diatonicChord(key, degree);
+    if ((target.quality === 'maj' || target.quality === 'min') && chroma(target.root) === chroma(candidateRoot)) {
+      const targetNumeral = numeralFor({ ...target, flavor: 'triad' }, key, 0);
+      return `V${chord.flavor === '7' ? '7' : ''}/${targetNumeral}`;
+    }
+  }
+  return null;
+}
+
+function labelFor(chord: ChordRef, key: Key, inversion: number): string {
+  if (chord.origin === 'secondary') return secondaryNumeral(chord, key) ?? numeralFor(chord, key, inversion);
+  return numeralFor(chord, key, inversion);
+}
+
 /** Recompute numeral (and origin, unless it is 'secondary') after the key or chord shape changed. */
 export function relabel(chord: ChordRef, key: Key): ChordRef {
   const next: ChordRef = { ...chord };
@@ -181,13 +204,13 @@ export function relabel(chord: ChordRef, key: Key): ChordRef {
     const isDiatonic = deg >= 0 && diatonicChord(key, deg).quality === chord.quality;
     next.origin = isDiatonic ? 'diatonic' : 'borrowed';
   }
-  next.numeral = numeralFor(next, key, inversionOf(next));
+  next.numeral = labelFor(next, key, inversionOf(next));
   return next;
 }
 
 export function withFlavor(chord: ChordRef, flavor: Flavor, key: Key): ChordRef {
   const next: ChordRef = { ...chord, flavor, bass: undefined };
-  next.numeral = numeralFor(next, key, 0);
+  next.numeral = labelFor(next, key, 0);
   return next;
 }
 
@@ -195,7 +218,7 @@ export function withFlavor(chord: ChordRef, flavor: Flavor, key: Key): ChordRef 
 export function withInversion(chord: ChordRef, inversion: number, key: Key): ChordRef {
   const n = Math.max(0, Math.min(inversion, inversionCount(chord) - 1));
   const next: ChordRef = { ...chord, bass: n === 0 ? undefined : chordStack(chord)[n] };
-  next.numeral = numeralFor(next, key, n);
+  next.numeral = labelFor(next, key, n);
   return next;
 }
 
