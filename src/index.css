@@ -1,0 +1,115 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: light dark;
+  --bg: #f6f6fb;
+  --surface: #ffffff;
+  --surface-2: #eeeef7;
+  --fg: #1a1a2e;
+  --muted: #62667c;
+  --line: #d9d9e6;
+  --accent: #4f46e5;
+  --accent-fg: #ffffff;
+  --c-diatonic: #4f46e5;
+  --c-borrowed: #c26a00;
+  --c-secondary: #c81e78;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12121c;
+    --surface: #1c1c2b;
+    --surface-2: #26263a;
+    --fg: #ececf6;
+    --muted: #9a9db6;
+    --line: #34344d;
+    --accent: #8b85ff;
+    --accent-fg: #12121c;
+    --c-diatonic: #8b85ff;
+    --c-borrowed: #ffb547;
+    --c-secondary: #ff6fb0;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+select,
+input {
+  font: inherit;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Node map */
+.map-svg {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.map-node {
+  cursor: pointer;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: node-pop 0.35s ease-out both;
+}
+
+.map-node:focus-visible {
+  outline: none;
+}
+
+.map-node:focus-visible circle.node-body {
+  stroke-width: 4;
+}
+
+.map-arrow {
+  animation: arrow-in 0.4s ease-out both;
+}
+
+@keyframes node-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes arrow-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-node,
+  .map-arrow {
+    animation: none;
+  }
+}
