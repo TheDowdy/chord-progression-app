@@ -94,6 +94,7 @@ function ChordSlot({
 
         <div className="pointer-events-auto mt-1 flex items-center gap-1">
           <button
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               setEventBeats(event.id, event.beats - 1);
@@ -105,6 +106,7 @@ function ChordSlot({
           </button>
           <span className={`pointer-events-none text-[11px] ${playing ? '' : 'text-muted'}`}>{event.beats} beats</span>
           <button
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               setEventBeats(event.id, event.beats + 1);
@@ -117,6 +119,7 @@ function ChordSlot({
         </div>
 
         <button
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             onOpenFlavor(editingFlavor ? null : event.id);
@@ -128,6 +131,7 @@ function ChordSlot({
           ⚙
         </button>
         <button
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             replacing ? cancelReplace() : startReplace(event.id);
@@ -139,6 +143,7 @@ function ChordSlot({
           ⇄
         </button>
         <button
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             removeEvent(event.id);
@@ -360,7 +365,15 @@ function ArrangementChip({ id, name, onRemove }: { id: string; name: string; onR
       className="flex items-center gap-1 rounded-full border border-line bg-surface-2 py-1 pl-3 pr-1 text-sm"
     >
       {name}
-      <button onClick={onRemove} aria-label={`Remove ${name} from arrangement`} className="grid size-6 place-items-center rounded-full text-sm opacity-70 hover:opacity-100">
+      <button
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+        aria-label={`Remove ${name} from arrangement`}
+        className="grid size-6 place-items-center rounded-full text-sm opacity-70 hover:opacity-100"
+      >
         ×
       </button>
     </li>

@@ -39,23 +39,51 @@ export interface PlaybackOptions {
 }
 
 /**
+ * Every instrument connects here instead of straight to the speakers: a shared gain trim (several
+ * independent voices summing — a full chord, or several PluckSynth "strings" — can otherwise add
+ * up past 0dBFS and hard-clip) followed by a limiter as a safety net for anything that still peaks.
+ */
+let masterBus: Tone.Gain | null = null;
+function getBus(): Tone.Gain {
+  if (!masterBus) {
+    const limiter = new Tone.Limiter(-1).toDestination();
+    masterBus = new Tone.Gain(0.7).connect(limiter);
+  }
+  return masterBus;
+}
+
+/** Guitar's lowest open string (E2); a plucked string modelled below this tends to buzz. */
+const PLUCK_FLOOR = 40;
+
+/** Raise `note` by octaves until it's at or above `PLUCK_FLOOR`, for the pluck voice only. */
+function liftForPluck(note: string): string {
+  let midi = Tone.Frequency(note).toMidi();
+  while (midi < PLUCK_FLOOR) midi += 12;
+  return Tone.Frequency(midi, 'midi').toNote();
+}
+
+/**
  * A small pool of individual `Tone.PluckSynth` voices (Karplus-Strong, one "string" each), since
  * PluckSynth isn't a `Monophonic` voice and so can't be wrapped in `Tone.PolySynth`. Notes are
  * assigned to strings round-robin; a pluck decays on its own, so there is no explicit release.
+ * Its own gain is trimmed down further than other instruments: six strings ringing together are
+ * louder than they look, since nothing here shapes them into a single chord envelope the way a
+ * sampler or PolySynth voice does.
  */
 class PluckVoice {
   private strings: Tone.PluckSynth[];
   private next = 0;
 
   constructor(count = 6) {
+    const trim = new Tone.Gain(0.6).connect(getBus());
     this.strings = Array.from({ length: count }, () =>
-      new Tone.PluckSynth({ attackNoise: 1, dampening: 3500, resonance: 0.92 }).toDestination(),
+      new Tone.PluckSynth({ attackNoise: 0.5, dampening: 2800, resonance: 0.9 }).connect(trim),
     );
   }
 
   triggerAttackRelease(notes: string | string[], _duration: Tone.Unit.Time, time?: Tone.Unit.Time): void {
     for (const note of Array.isArray(notes) ? notes : [notes]) {
-      this.strings[this.next].triggerAttack(note, time);
+      this.strings[this.next].triggerAttack(liftForPluck(note), time);
       this.next = (this.next + 1) % this.strings.length;
     }
   }
@@ -77,7 +105,7 @@ function makeFallbackPiano(): Tone.PolySynth {
   return new Tone.PolySynth(Tone.Synth, {
     oscillator: { type: 'triangle' },
     envelope: { attack: 0.01, decay: 0.3, sustain: 0.3, release: 1 },
-  }).toDestination();
+  }).connect(getBus());
 }
 
 function loadPiano(): Promise<void> {
@@ -96,7 +124,7 @@ function loadPiano(): Promise<void> {
           resolve();
         },
         onerror: fallBack,
-      }).toDestination();
+      }).connect(getBus());
     } catch {
       fallBack();
     }
@@ -111,12 +139,12 @@ function makeInstrument(id: InstrumentId): Voice {
         modulationIndex: 6,
         envelope: { attack: 0.005, decay: 1.2, sustain: 0.15, release: 1.4 },
         modulationEnvelope: { attack: 0.01, decay: 0.4, sustain: 0.05, release: 0.8 },
-      }).toDestination();
+      }).connect(getBus());
     case 'pad':
       return new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'sawtooth' },
         envelope: { attack: 0.8, decay: 0.6, sustain: 0.8, release: 2.2 },
-      }).toDestination();
+      }).connect(getBus());
     case 'guitar':
       return new PluckVoice();
     case 'piano':
@@ -147,7 +175,7 @@ export async function previewChord(midi: number[], instrument: InstrumentId = 'p
 }
 
 function ensureMetronome(): Tone.MembraneSynth {
-  metronomeSynth ??= new Tone.MembraneSynth({ pitchDecay: 0.008, envelope: { attack: 0.001, decay: 0.06, sustain: 0 } }).toDestination();
+  metronomeSynth ??= new Tone.MembraneSynth({ pitchDecay: 0.008, envelope: { attack: 0.001, decay: 0.06, sustain: 0 } }).connect(getBus());
   return metronomeSynth;
 }
 
