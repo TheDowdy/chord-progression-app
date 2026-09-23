@@ -77,7 +77,7 @@ class PluckVoice {
   constructor(count = 6) {
     const trim = new Tone.Gain(0.6).connect(getBus());
     this.strings = Array.from({ length: count }, () =>
-      new Tone.PluckSynth({ attackNoise: 0.9, dampening: 4500, resonance: 0.97 }).connect(trim),
+      new Tone.PluckSynth({ attackNoise: 0.8, dampening: 3000, resonance: 0.94 }).connect(trim),
     );
   }
 
@@ -108,27 +108,44 @@ function makeFallbackPiano(): Tone.PolySynth {
   }).connect(getBus());
 }
 
-function loadPiano(): Promise<void> {
+/**
+ * One attempt at loading the full sample set. `Tone.Sampler`'s `onerror` fires (and its internal
+ * loaded-count never reaches zero, so `onload` never fires either) if even a single one of the
+ * 18 files fails to load — a transient network/dev-server hiccup on any one file silently and
+ * permanently kills the whole piano for the session. Resolves the half-loaded sampler's own
+ * connections away on failure so a retry doesn't leak dangling audio nodes.
+ */
+function loadPianoOnce(): Promise<Tone.Sampler | null> {
   return new Promise((resolve) => {
-    const fallBack = () => {
-      voices.set('piano', makeFallbackPiano());
-      resolve();
-    };
+    let sampler: Tone.Sampler;
     try {
-      const sampler = new Tone.Sampler({
+      sampler = new Tone.Sampler({
         urls: SAMPLE_NOTES,
         baseUrl: `${import.meta.env.BASE_URL}samples/salamander/`,
         release: 1.2,
-        onload: () => {
-          voices.set('piano', sampler);
-          resolve();
+        onload: () => resolve(sampler),
+        onerror: () => {
+          sampler.dispose();
+          resolve(null);
         },
-        onerror: fallBack,
       }).connect(getBus());
     } catch {
-      fallBack();
+      resolve(null);
     }
   });
+}
+
+const PIANO_LOAD_ATTEMPTS = 3;
+
+async function loadPiano(): Promise<void> {
+  for (let attempt = 0; attempt < PIANO_LOAD_ATTEMPTS; attempt++) {
+    const sampler = await loadPianoOnce();
+    if (sampler) {
+      voices.set('piano', sampler);
+      return;
+    }
+  }
+  voices.set('piano', makeFallbackPiano());
 }
 
 function makeInstrument(id: InstrumentId): Voice {

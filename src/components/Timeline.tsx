@@ -105,7 +105,7 @@ function ChordSlot({
               adjustEventBeats(event.id, -1);
             }}
             aria-label="Fewer beats"
-            className="grid size-5 place-items-center rounded-full text-xs leading-none opacity-70 hover:opacity-100"
+            className="grid size-7 place-items-center rounded-full text-sm leading-none opacity-70 hover:bg-surface hover:opacity-100"
           >
             –
           </button>
@@ -117,7 +117,7 @@ function ChordSlot({
               adjustEventBeats(event.id, 1);
             }}
             aria-label="More beats"
-            className="grid size-5 place-items-center rounded-full text-xs leading-none opacity-70 hover:opacity-100"
+            className="grid size-7 place-items-center rounded-full text-sm leading-none opacity-70 hover:bg-surface hover:opacity-100"
           >
             +
           </button>
