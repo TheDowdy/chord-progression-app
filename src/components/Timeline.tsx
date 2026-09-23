@@ -21,6 +21,7 @@ import { pianoVoicing } from '../theory/voicings';
 import { previewChord } from '../audio/engine';
 import { useStore } from '../state/store';
 import type { ChordEvent, Section } from '../types';
+import ChordDetail from './ChordDetail';
 import FlavorPicker from './FlavorPicker';
 
 const ORIGIN_COLOR = {
@@ -39,8 +40,10 @@ function ChordSlot({
   active,
   playing,
   editingFlavor,
+  editingDetail,
   replacing,
   onOpenFlavor,
+  onOpenDetail,
 }: {
   event: ChordEvent;
   sectionId: string;
@@ -49,8 +52,10 @@ function ChordSlot({
   active: boolean;
   playing: boolean;
   editingFlavor: boolean;
+  editingDetail: boolean;
   replacing: boolean;
   onOpenFlavor: (id: string | null) => void;
+  onOpenDetail: (id: string | null) => void;
 }) {
   const isPlaying = useStore((s) => s.isPlaying);
   const instrument = useStore((s) => s.song.instrument);
@@ -126,9 +131,21 @@ function ChordSlot({
           }}
           aria-label={`Change flavor of ${chordName(event.chord)}`}
           aria-pressed={editingFlavor}
-          className="absolute left-0.5 top-0.5 grid size-8 place-items-center rounded-full text-sm leading-none opacity-70 hover:opacity-100"
+          className="absolute left-0.5 top-0.5 grid size-6 place-items-center rounded-full text-xs leading-none opacity-70 hover:opacity-100"
         >
           ⚙
+        </button>
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenDetail(editingDetail ? null : event.id);
+          }}
+          aria-label={`Expand ${chordName(event.chord)}: piano or guitar`}
+          aria-pressed={editingDetail}
+          className="absolute left-7 top-0.5 grid size-6 place-items-center rounded-full text-xs leading-none opacity-70 hover:opacity-100"
+        >
+          ⛶
         </button>
         <button
           onPointerDown={(e) => e.stopPropagation()}
@@ -138,7 +155,7 @@ function ChordSlot({
           }}
           aria-label={replacing ? 'Cancel replace' : `Replace ${chordName(event.chord)}`}
           aria-pressed={replacing}
-          className="absolute right-8 top-0.5 grid size-8 place-items-center rounded-full text-sm leading-none opacity-70 hover:opacity-100"
+          className="absolute right-7 top-0.5 grid size-6 place-items-center rounded-full text-xs leading-none opacity-70 hover:opacity-100"
         >
           ⇄
         </button>
@@ -149,7 +166,7 @@ function ChordSlot({
             removeEvent(event.id);
           }}
           aria-label={`Remove ${chordName(event.chord)}`}
-          className="absolute right-0.5 top-0.5 grid size-8 place-items-center rounded-full text-lg leading-none opacity-70 hover:opacity-100"
+          className="absolute right-0.5 top-0.5 grid size-6 place-items-center rounded-full text-base leading-none opacity-70 hover:opacity-100"
         >
           ×
         </button>
@@ -185,6 +202,7 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
   const setActiveSection = useStore((s) => s.setActiveSection);
   const reorderSections = useStore((s) => s.reorderSections);
   const [flavorId, setFlavorId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const activeId = isPlaying && playingId ? playingId : selectedId;
   const barLength = song.timeSig.beats;
@@ -195,6 +213,7 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
     return { event, offset };
   });
   const flavorEvent = section.events.find((e) => e.id === flavorId);
+  const detailEvent = section.events.find((e) => e.id === detailId);
 
   return (
     <section
@@ -276,8 +295,16 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
                 active={event.id === activeId}
                 playing={isPlaying && event.id === playingId}
                 editingFlavor={event.id === flavorId}
+                editingDetail={event.id === detailId}
                 replacing={event.id === replaceTargetId}
-                onOpenFlavor={setFlavorId}
+                onOpenFlavor={(id) => {
+                  setDetailId(null);
+                  setFlavorId(id);
+                }}
+                onOpenDetail={(id) => {
+                  setFlavorId(null);
+                  setDetailId(id);
+                }}
               />
             ))}
           </ol>
@@ -293,6 +320,11 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
             onChoose={(c) => useStore.getState().setEventChord(flavorEvent.id, c)}
             onClose={() => setFlavorId(null)}
           />
+        </div>
+      )}
+      {detailEvent && (
+        <div className="mt-2">
+          <ChordDetail chord={detailEvent.chord} onClose={() => setDetailId(null)} />
         </div>
       )}
     </section>

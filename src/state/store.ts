@@ -3,7 +3,8 @@ import { create } from 'zustand';
 import { relabel, transposeChord } from '../theory/chords';
 import type { ChordRef, Key } from '../theory/types';
 import type { InstrumentId, PatternId, Section, Song, TimeSig } from '../types';
-import { findEvent, flattenSong, newEvent, newId, newSection, newSong, withSection } from './song';
+import { loadInitialSong, setCurrentSongId } from './persistence';
+import { findEvent, flattenSong, newEvent, newId, newSection, newSong as createSong, withSection } from './song';
 
 export type KeyChangeMode = 'transpose' | 'relabel';
 
@@ -70,6 +71,12 @@ interface AppState {
   setVolume: (volume: number) => void;
   setPlaying: (isPlaying: boolean) => void;
   setPlayingEvent: (id: string | null) => void;
+
+  setTitle: (title: string) => void;
+  /** Replace the whole song (open a saved song, import JSON, or start a new one) and reset the
+   *  editor selection, which otherwise could point at an event id from the old song. */
+  loadSong: (song: Song) => void;
+  newSong: () => void;
 }
 
 const touch = (song: Song): Song => ({ ...song, updatedAt: Date.now() });
@@ -83,7 +90,7 @@ function move<T>(arr: T[], from: number, to: number): T[] {
   return next;
 }
 
-const initialSong = newSong();
+const initialSong = loadInitialSong();
 
 export const useStore = create<AppState>((set) => ({
   song: initialSong,
@@ -288,6 +295,31 @@ export const useStore = create<AppState>((set) => ({
   setVolume: (volume) => set({ volume: Math.max(0, Math.min(1, volume)) }),
   setPlaying: (isPlaying) => set(isPlaying ? { isPlaying } : { isPlaying, playingEventId: null }),
   setPlayingEvent: (id) => set({ playingEventId: id }),
+
+  setTitle: (title) => set((s) => ({ song: touch({ ...s.song, title }) })),
+  loadSong: (song) => {
+    setCurrentSongId(song.id);
+    set({
+      song,
+      activeSectionId: song.sections[0]?.id ?? newSection().id,
+      selectedEventId: null,
+      playingEventId: null,
+      isPlaying: false,
+      replaceTargetId: null,
+    });
+  },
+  newSong: () => {
+    const song = createSong();
+    setCurrentSongId(song.id);
+    set({
+      song,
+      activeSectionId: song.sections[0].id,
+      selectedEventId: null,
+      playingEventId: null,
+      isPlaying: false,
+      replaceTargetId: null,
+    });
+  },
 }));
 
 /**

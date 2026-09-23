@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import KeyPicker from './components/KeyPicker';
 import NodeMap from './components/NodeMap';
+import SongPanel from './components/SongPanel';
 import Timeline from './components/Timeline';
 import TransportBar from './components/TransportBar';
 import { previewChord } from './audio/engine';
+import { useAutosave } from './state/persistence';
 import { useLivePlaybackSync } from './state/playback';
 import { selectCenter, useStore } from './state/store';
 import { startChords, suggestNext } from './theory/suggestions';
@@ -12,6 +14,7 @@ import { pianoVoicing } from './theory/voicings';
 
 export default function App() {
   useLivePlaybackSync();
+  useAutosave();
 
   const song = useStore((s) => s.song);
   const selectedEventId = useStore((s) => s.selectedEventId);
@@ -35,6 +38,7 @@ export default function App() {
           <h1 className="text-2xl font-bold tracking-tight">Chord Builder</h1>
           <p className="text-sm text-muted">Pick a key, pick a chord, and see where you could go next.</p>
         </header>
+        <SongPanel />
         <KeyPicker />
         <TransportBar />
         <NodeMap

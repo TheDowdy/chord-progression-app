@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { chordKey, chordName } from '../theory/chords';
 import { keyLabel } from '../theory/scales';
 import type { ChordRef, Key, Origin, Suggestion } from '../theory/types';
+import ChordDetail from './ChordDetail';
 import FlavorPicker from './FlavorPicker';
 
 const SIZE = 400;
@@ -67,6 +68,7 @@ function NodeLabel({ chord, r }: { chord: ChordRef; r: number }) {
 export default function NodeMap({ musicKey, center, suggestions, startRing, onPreview, onAdd }: Props) {
   const [focusId, setFocusId] = useState<string | null>(null);
   const [flavorOpen, setFlavorOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [pendingChord, setPendingChord] = useState<ChordRef | null>(null);
   const centerId = center ? chordKey(center) : `start:${musicKey.tonic}:${musicKey.mode}`;
 
@@ -75,6 +77,7 @@ export default function NodeMap({ musicKey, center, suggestions, startRing, onPr
   // A new focus starts fresh: any flavor tweak was for the previous node.
   useEffect(() => {
     setFlavorOpen(false);
+    setDetailOpen(false);
     setPendingChord(null);
   }, [focusId]);
 
@@ -230,12 +233,26 @@ export default function NodeMap({ musicKey, center, suggestions, startRing, onPr
                 <p className="text-sm text-muted">{focused.reason}</p>
               </div>
               <button
-                onClick={() => setFlavorOpen((v) => !v)}
+                onClick={() => {
+                  setDetailOpen(false);
+                  setFlavorOpen((v) => !v);
+                }}
                 aria-pressed={flavorOpen}
                 aria-label="Change flavor or inversion"
                 className={`shrink-0 grid size-10 place-items-center rounded-lg border text-base ${flavorOpen ? 'border-accent text-accent' : 'border-line text-muted hover:bg-surface-2'}`}
               >
                 ⚙
+              </button>
+              <button
+                onClick={() => {
+                  setFlavorOpen(false);
+                  setDetailOpen((v) => !v);
+                }}
+                aria-pressed={detailOpen}
+                aria-label="Expand: piano keyboard or guitar diagram"
+                className={`shrink-0 grid size-10 place-items-center rounded-lg border text-base ${detailOpen ? 'border-accent text-accent' : 'border-line text-muted hover:bg-surface-2'}`}
+              >
+                ⛶
               </button>
               <button
                 onClick={() => onAdd(pendingChord ?? focused.chord)}
@@ -253,6 +270,7 @@ export default function NodeMap({ musicKey, center, suggestions, startRing, onPr
                 onClose={() => setFlavorOpen(false)}
               />
             )}
+            {detailOpen && <ChordDetail chord={pendingChord ?? focused.chord} onClose={() => setDetailOpen(false)} />}
           </>
         ) : (
           <p className="pt-2 text-center text-sm text-muted">
