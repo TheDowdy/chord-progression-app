@@ -56,7 +56,7 @@ function ChordSlot({
   const instrument = useStore((s) => s.song.instrument);
   const selectEvent = useStore((s) => s.selectEvent);
   const removeEvent = useStore((s) => s.removeEvent);
-  const setEventBeats = useStore((s) => s.setEventBeats);
+  const adjustEventBeats = useStore((s) => s.adjustEventBeats);
   const startReplace = useStore((s) => s.startReplace);
   const cancelReplace = useStore((s) => s.cancelReplace);
 
@@ -97,7 +97,7 @@ function ChordSlot({
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
-              setEventBeats(event.id, event.beats - 1);
+              adjustEventBeats(event.id, -1);
             }}
             aria-label="Fewer beats"
             className="grid size-5 place-items-center rounded-full text-xs leading-none opacity-70 hover:opacity-100"
@@ -109,7 +109,7 @@ function ChordSlot({
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
-              setEventBeats(event.id, event.beats + 1);
+              adjustEventBeats(event.id, 1);
             }}
             aria-label="More beats"
             className="grid size-5 place-items-center rounded-full text-xs leading-none opacity-70 hover:opacity-100"

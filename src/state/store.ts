@@ -33,6 +33,9 @@ interface AppState {
   /** Replace a placed event's chord in place (flavor, inversion, or an entirely different chord). */
   setEventChord: (id: string, chord: ChordRef) => void;
   setEventBeats: (id: string, beats: number) => void;
+  /** Like setEventBeats, but relative to the event's current beats at update time — safe to call
+   *  from rapid repeated clicks, unlike `setEventBeats(id, event.beats + delta)` from a stale prop. */
+  adjustEventBeats: (id: string, delta: number) => void;
   reorderEvents: (sectionId: string, fromIndex: number, toIndex: number) => void;
   moveEvent: (eventId: string, toSectionId: string, toIndex: number) => void;
   clearSection: (sectionId: string) => void;
@@ -142,6 +145,17 @@ export const useStore = create<AppState>((set) => ({
       if (!found) return s;
       const { section, index } = found;
       const events = section.events.map((e, i) => (i === index ? { ...e, beats: clampBeats(beats) } : e));
+      return { song: withSection(s.song, section.id, { ...section, events }) };
+    }),
+
+  adjustEventBeats: (id, delta) =>
+    set((s) => {
+      const found = findEvent(s.song, id);
+      if (!found) return s;
+      const { section, index } = found;
+      const events = section.events.map((e, i) =>
+        i === index ? { ...e, beats: clampBeats(e.beats + delta) } : e,
+      );
       return { song: withSection(s.song, section.id, { ...section, events }) };
     }),
 

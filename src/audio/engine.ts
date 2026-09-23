@@ -77,7 +77,7 @@ class PluckVoice {
   constructor(count = 6) {
     const trim = new Tone.Gain(0.6).connect(getBus());
     this.strings = Array.from({ length: count }, () =>
-      new Tone.PluckSynth({ attackNoise: 0.5, dampening: 2800, resonance: 0.9 }).connect(trim),
+      new Tone.PluckSynth({ attackNoise: 0.9, dampening: 4500, resonance: 0.97 }).connect(trim),
     );
   }
 
