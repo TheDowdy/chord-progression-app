@@ -17,8 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { chordName } from '../theory/chords';
-import { pianoVoicing } from '../theory/voicings';
-import { previewChord } from '../audio/engine';
+import { previewChordInSong } from '../state/playback';
 import { BEATS_MAX, useStore } from '../state/store';
 import type { ChordEvent, Section } from '../types';
 import ChordDetail from './ChordDetail';
@@ -53,7 +52,6 @@ function ChordSlot({
   replacing: boolean;
 }) {
   const isPlaying = useStore((s) => s.isPlaying);
-  const instrument = useStore((s) => s.song.instrument);
   const selectEvent = useStore((s) => s.selectEvent);
   const setEventBeats = useStore((s) => s.setEventBeats);
 
@@ -118,7 +116,7 @@ function ChordSlot({
         <button
           onClick={() => {
             selectEvent(event.id);
-            if (!isPlaying) void previewChord(pianoVoicing(event.chord), instrument);
+            if (!isPlaying) void previewChordInSong(event.chord, event.beats);
           }}
           {...attributes}
           {...listeners}
@@ -342,7 +340,7 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
           <FlavorPicker
             chord={flavorEvent.chord}
             musicKey={song.key}
-            onPreview={(c) => void previewChord(pianoVoicing(c), song.instrument)}
+            onPreview={(c) => void previewChordInSong(c)}
             onChoose={(c) => useStore.getState().setEventChord(flavorEvent.id, c)}
             onClose={() => setFlavorId(null)}
           />

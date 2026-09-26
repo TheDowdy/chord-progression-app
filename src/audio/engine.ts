@@ -55,6 +55,10 @@ function getBus(): Tone.Gain {
 /** Lowest / highest MIDI note a guitar sample is rendered for; notes outside are pitch-shifted. */
 const GUITAR_LOW = 38;
 const GUITAR_HIGH = 79;
+/** Note names (as in the sample file names) that public/samples/guitar-acoustic has. */
+const GUITAR_FILES = new Set(
+  'A2 A3 A4 As2 As3 As4 B2 B3 B4 C3 C4 C5 Cs3 Cs4 Cs5 D2 D3 D4 D5 Ds2 Ds3 Ds4 E2 E3 E4 F2 F3 F4 Fs2 Fs3 Fs4 G2 G3 G4 Gs2 Gs3 Gs4'.split(' '),
+);
 /** A struck/plucked string keeps ringing at least this long, whatever the chord's written length. */
 const GUITAR_MIN_RING = 1.1;
 
@@ -109,6 +113,7 @@ export function renderPluck(midi: number, sampleRate: number, seconds = 3): Floa
  */
 class GuitarVoice {
   private sampler: Tone.Sampler;
+  private recorded: Tone.Sampler | null = null;
 
   constructor() {
     const ctx = Tone.getContext();
@@ -122,15 +127,34 @@ class GuitarVoice {
     // Warm the tone slightly: a real guitar body rolls the top end off.
     const tone = new Tone.Filter(4200, 'lowpass').connect(getBus());
     this.sampler = new Tone.Sampler({ urls, release: 0.25 }).connect(tone);
+
+    // Recorded acoustic guitar (public/samples/guitar-acoustic, CC-BY 3.0, see CREDITS.md) takes
+    // over once it has loaded; until then, or if a file fails, the synthesized plucks above play.
+    const recordedUrls: Record<string, string> = {};
+    for (const oct of [2, 3, 4, 5]) {
+      for (const name of ['C', 'Cs', 'D', 'Ds', 'E', 'F', 'Fs', 'G', 'Gs', 'A', 'As', 'B']) {
+        if (GUITAR_FILES.has(`${name}${oct}`)) recordedUrls[`${name.replace('s', '#')}${oct}`] = `${name}${oct}.mp3`;
+      }
+    }
+    const recorded: Tone.Sampler = new Tone.Sampler({
+      urls: recordedUrls,
+      baseUrl: `${import.meta.env.BASE_URL}samples/guitar-acoustic/`,
+      release: 0.6,
+      onload: () => {
+        this.recorded = recorded;
+      },
+      onerror: () => recorded.dispose(),
+    }).connect(getBus());
   }
 
   triggerAttackRelease(notes: string | string[], duration: Tone.Unit.Time, time?: Tone.Unit.Time): void {
     const ring = Math.max(Tone.Time(duration).toSeconds(), GUITAR_MIN_RING);
-    this.sampler.triggerAttackRelease(notes, ring, time);
+    (this.recorded ?? this.sampler).triggerAttackRelease(notes, ring, time);
   }
 
   releaseAll(): void {
     this.sampler.releaseAll();
+    this.recorded?.releaseAll();
   }
 }
 
@@ -231,6 +255,24 @@ function voiceFor(id: InstrumentId): Voice | null {
 export async function previewChord(midi: number[], instrument: InstrumentId = 'piano', seconds = 1.6): Promise<void> {
   await unlockAudio();
   voiceFor(instrument)?.triggerAttackRelease(noteNames(midi), seconds, Tone.now());
+}
+
+/** Play strikes once, straight away, outside the transport (chord previews with the chosen pattern). */
+export async function previewStrikes(strikes: NoteStrike[], instrument: InstrumentId, bpm: number): Promise<void> {
+  await unlockAudio();
+  const voice = voiceFor(instrument);
+  const start = Tone.now() + 0.05;
+  const secPerBeat = 60 / bpm;
+  for (const strike of strikes) {
+    const names = noteNames(strike.midi);
+    const at = start + strike.offsetBeats * secPerBeat;
+    const seconds = strike.durationBeats * secPerBeat * 0.97;
+    if (strike.strumSeconds && names.length > 1) {
+      names.forEach((n, i) => voice?.triggerAttackRelease(n, seconds, at + i * (strike.strumSeconds ?? 0)));
+    } else {
+      voice?.triggerAttackRelease(names, seconds, at);
+    }
+  }
 }
 
 function ensureMetronome(): Tone.MembraneSynth {

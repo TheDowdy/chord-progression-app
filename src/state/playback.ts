@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { renderPattern } from '../audio/patterns';
-import { startPlayback, stopPlayback, updatePlayback, type NoteStrike, type PlaybackOptions } from '../audio/engine';
+import { previewStrikes, startPlayback, stopPlayback, updatePlayback, type NoteStrike, type PlaybackOptions } from '../audio/engine';
 import { voiceLeadChord } from '../theory/voicings';
 import type { Song } from '../types';
+import type { ChordRef } from '../theory/types';
 import { flattenDetailed, sectionLoopBounds } from './song';
 import { useStore } from './store';
 
@@ -28,6 +29,22 @@ export function toNoteStrikes(song: Song): NoteStrike[] {
     });
   }
   return strikes;
+}
+
+/** Sound one chord the way the song will: the selected pattern, instrument and tempo, one bar
+ *  long unless `beats` is given (e.g. a timeline chord's own length). */
+export function previewChordInSong(chord: ChordRef, beats?: number): Promise<void> {
+  const { song } = useStore.getState();
+  const voicing = voiceLeadChord(chord, null);
+  const strikes = renderPattern(song.pattern, voicing.length - 1, beats ?? song.timeSig.beats, song.timeSig).map((s) => ({
+    eventId: '',
+    isChordStart: false,
+    offsetBeats: s.offset,
+    durationBeats: s.duration,
+    midi: s.noteIndices.map((idx) => voicing[idx]).filter((n): n is number => n !== undefined),
+    strumSeconds: s.strumSeconds,
+  }));
+  return previewStrikes(strikes, song.instrument, song.bpm);
 }
 
 function playbackOptions(): Omit<PlaybackOptions, 'onEvent'> {

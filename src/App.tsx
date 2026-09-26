@@ -4,13 +4,11 @@ import NodeMap from './components/NodeMap';
 import SongPanel from './components/SongPanel';
 import Timeline from './components/Timeline';
 import TransportBar from './components/TransportBar';
-import { previewChord } from './audio/engine';
 import { useAutosave } from './state/persistence';
-import { useLivePlaybackSync } from './state/playback';
+import { previewChordInSong, useLivePlaybackSync } from './state/playback';
 import { selectCenter, useStore } from './state/store';
 import { startChords, suggestNext } from './theory/suggestions';
 import type { ChordRef } from './theory/types';
-import { pianoVoicing } from './theory/voicings';
 
 export default function App() {
   useLivePlaybackSync();
@@ -29,7 +27,7 @@ export default function App() {
   const suggestions = useMemo(() => (center ? suggestNext(center, song.key, previous) : []), [center, previous, song.key]);
   const startRing = useMemo(() => startChords(song.key), [song.key]);
 
-  const preview = (chord: ChordRef) => void previewChord(pianoVoicing(chord), song.instrument);
+  const preview = (chord: ChordRef) => void previewChordInSong(chord);
 
   return (
     <div className="min-h-dvh pb-44 lg:pb-10">
