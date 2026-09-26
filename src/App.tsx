@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import SheetView from './sheet/SheetView';
 import KeyPicker from './components/KeyPicker';
 import NodeMap from './components/NodeMap';
 import SongPanel from './components/SongPanel';
@@ -47,14 +48,23 @@ export default function App() {
   const suggestions = useMemo(() => (center ? suggestNext(center, song.key, previous) : []), [center, previous, song.key]);
   const startRing = useMemo(() => startChords(song.key), [song.key]);
 
+  const [sheetOpen, setSheetOpen] = useState(false);
   const preview = (chord: ChordRef) => void previewChordInSong(chord);
 
   return (
-    <div className="min-h-dvh pb-44 lg:pb-10">
+    <div className="app-shell min-h-dvh pb-44 lg:pb-10">
       <div className="mx-auto max-w-3xl space-y-4 px-4 pt-5">
         <header className="flex items-center justify-between">
           <h1 className="text-xl font-semibold tracking-tight">Progression Builder</h1>
-          <ThemeToggle />
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSheetOpen(true)}
+              className="h-9 rounded-lg border border-line px-3 text-sm font-medium hover:bg-surface-2"
+            >
+              Sheet music
+            </button>
+            <ThemeToggle />
+          </div>
         </header>
         <SongPanel />
         <KeyPicker />
@@ -69,6 +79,7 @@ export default function App() {
         />
         <Timeline />
       </div>
+      {sheetOpen && <SheetView onClose={() => setSheetOpen(false)} />}
     </div>
   );
 }
