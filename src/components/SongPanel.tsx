@@ -17,6 +17,9 @@ function formatDate(ms: number): string {
 
 function SavedRow({ meta, currentId, onChanged }: { meta: SongMeta; currentId: string; onChanged: () => void }) {
   const loadSong = useStore((s) => s.loadSong);
+  const setTitle = useStore((s) => s.setTitle);
+  const newSongAction = useStore((s) => s.newSong);
+  const isCurrent = meta.id === currentId;
   const [renaming, setRenaming] = useState(false);
   const [draftTitle, setDraftTitle] = useState(meta.title);
 
@@ -26,8 +29,13 @@ function SavedRow({ meta, currentId, onChanged }: { meta: SongMeta; currentId: s
   };
 
   const commitRename = () => {
-    const song = getSongFromStorage(meta.id);
-    if (song) saveSongToStorage({ ...song, title: draftTitle.trim() || song.title, updatedAt: Date.now() });
+    const title = draftTitle.trim() || meta.title;
+    if (isCurrent) {
+      setTitle(title); // the open song autosaves from the store, so rename it there
+    } else {
+      const song = getSongFromStorage(meta.id);
+      if (song) saveSongToStorage({ ...song, title, updatedAt: Date.now() });
+    }
     setRenaming(false);
     onChanged();
   };
@@ -41,31 +49,37 @@ function SavedRow({ meta, currentId, onChanged }: { meta: SongMeta; currentId: s
   const remove = () => {
     if (!confirm(`Delete "${meta.title}"? This can't be undone.`)) return;
     deleteSongFromStorage(meta.id);
+    if (isCurrent) newSongAction(); // otherwise autosave would just write it straight back
     onChanged();
   };
 
   return (
-    <li className="flex items-center gap-2 rounded-lg border border-line px-2.5 py-2 text-sm">
+    <li className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-sm ${isCurrent ? 'border-accent' : 'border-line'}`}>
       {renaming ? (
         <input
           autoFocus
           value={draftTitle}
           onChange={(e) => setDraftTitle(e.target.value)}
           onBlur={commitRename}
-          onKeyDown={(e) => e.key === 'Enter' && commitRename()}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           aria-label="Song title"
           className="h-8 min-w-0 flex-1 rounded-md border border-line bg-surface px-2"
         />
       ) : (
         <div className="min-w-0 flex-1">
-          <p className={`truncate font-medium ${meta.id === currentId ? 'text-accent' : ''}`}>{meta.title || 'Untitled song'}</p>
-          <p className="text-xs text-muted">{formatDate(meta.updatedAt)}</p>
+          <p className="truncate font-medium">{meta.title || 'Untitled song'}</p>
+          <p className="text-xs text-muted">
+            {isCurrent && <span className="mr-1.5 rounded-full bg-accent px-2 py-0.5 font-semibold text-accent-fg">Open now · autosaves</span>}
+            {formatDate(meta.updatedAt)}
+          </p>
         </div>
       )}
       <div className="flex shrink-0 items-center gap-1 text-xs">
-        <button onClick={open} className="rounded-md px-2 py-1 hover:bg-surface-2">
-          Open
-        </button>
+        {!isCurrent && (
+          <button onClick={open} className="rounded-md px-2 py-1 hover:bg-surface-2">
+            Open
+          </button>
+        )}
         <button onClick={() => setRenaming((v) => !v)} className="rounded-md px-2 py-1 hover:bg-surface-2">
           Rename
         </button>
@@ -84,7 +98,7 @@ function SavedRow({ meta, currentId, onChanged }: { meta: SongMeta; currentId: s
  *  import/export as a backup, and MIDI export. */
 export default function SongPanel() {
   const [expanded, setExpanded] = useState(false);
-  const [songs, setSongs] = useState<SongMeta[]>([]);
+  const [, setVersion] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -94,23 +108,31 @@ export default function SongPanel() {
   const newSongAction = useStore((s) => s.newSong);
   const hasChords = useStore((s) => flattenSong(s.song).length > 0);
 
-  const refresh = () => setSongs(listSongs());
+  const titleInput = useRef<HTMLInputElement>(null);
 
-  const toggle = () => {
-    setExpanded((v) => {
-      if (!v) refresh();
-      return !v;
-    });
-  };
+  const refresh = () => setVersion((v) => v + 1);
+  // The saved library plus the open song as it is right now (its autosave lags edits by a moment),
+  // so the list never shows a stale copy of the song being edited, or the same song twice.
+  const songs: SongMeta[] = expanded
+    ? [...listSongs().filter((m) => m.id !== song.id), { id: song.id, title: song.title, updatedAt: song.updatedAt }].sort(
+        (a, b) => b.updatedAt - a.updatedAt,
+      )
+    : [];
 
-  const saveAsNew = () => {
-    saveSongToStorage({ ...song, id: newId(), updatedAt: Date.now() });
+  const toggle = () => setExpanded((v) => !v);
+
+  const saveCopy = () => {
+    // A copy is a separate song; the one you're editing stays open and keeps autosaving.
+    saveSongToStorage({ ...song, id: newId(), title: `${song.title} copy`, updatedAt: Date.now() });
     refresh();
   };
 
+  // Nothing is lost by starting a new song: the current one has already autosaved. The new one
+  // opens with its title selected, so typing names it and Enter/Tab finishes.
   const startNewSong = () => {
-    if (hasChords && !confirm('Start a new blank song? Your current song is already saved.')) return;
+    saveSongToStorage(song);
     newSongAction();
+    setTimeout(() => titleInput.current?.select(), 0);
   };
 
   const importFile = async (file: File) => {
@@ -130,8 +152,11 @@ export default function SongPanel() {
     <div className="rounded-xl border border-line bg-surface p-3">
       <div className="flex items-center gap-2">
         <input
+          ref={titleInput}
           value={song.title}
           onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          placeholder="Song title"
           aria-label="Song title"
           className="h-10 min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 font-semibold hover:border-line focus:border-line"
         />
@@ -151,8 +176,8 @@ export default function SongPanel() {
             <button onClick={startNewSong} className="rounded-lg border border-line px-3 py-1.5 font-medium hover:bg-surface-2">
               New song
             </button>
-            <button onClick={saveAsNew} className="rounded-lg border border-line px-3 py-1.5 font-medium hover:bg-surface-2">
-              Save as new
+            <button onClick={saveCopy} className="rounded-lg border border-line px-3 py-1.5 font-medium hover:bg-surface-2">
+              Save a copy
             </button>
             <button onClick={() => downloadSongJson(song)} className="rounded-lg border border-line px-3 py-1.5 font-medium hover:bg-surface-2">
               Export JSON
@@ -179,6 +204,9 @@ export default function SongPanel() {
               Export MIDI
             </button>
           </div>
+          <p className="text-xs text-muted">
+            Everything you change is saved automatically to this browser. "New song" starts a blank one; "Save a copy" duplicates the open song.
+          </p>
           {importError && <p className="text-sm text-red-500">{importError}</p>}
 
           {songs.length > 0 ? (
@@ -188,7 +216,7 @@ export default function SongPanel() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted">No saved songs yet — this one autosaves as you edit it.</p>
+            <p className="text-sm text-muted">Your song autosaves as you edit it.</p>
           )}
         </div>
       )}
