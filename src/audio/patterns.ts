@@ -13,9 +13,13 @@ export interface Strike {
   duration: number;
   noteIndices: number[];
   strumSeconds?: number;
+  /** 0–1 loudness; omitted means full. Up-strokes are lighter than down-strokes. */
+  velocity?: number;
 }
 
-const STRUM_SECONDS = 0.022;
+const STRUM_SECONDS = 0.03;
+/** An up-stroke is lighter and catches only the higher strings (no bass note). */
+const UP_VELOCITY = 0.6;
 /** Held length as a fraction of the beat, short of the full beat so arpeggio notes stay separate. */
 const ARP_GAP = 0.9;
 
@@ -43,7 +47,9 @@ export function renderPattern(pattern: PatternId, upperCount: number, beats: num
     case 'strum-updown':
       return Array.from({ length: beats }, (_, b) => {
         const down = b % 2 === 0;
-        return { offset: b, duration: 1, noteIndices: down ? all : [...all].reverse(), strumSeconds: down ? STRUM_SECONDS : -STRUM_SECONDS };
+        if (down) return { offset: b, duration: 1, noteIndices: all, strumSeconds: STRUM_SECONDS };
+        const high = upper.length >= 2 ? upper : all;
+        return { offset: b, duration: 1, noteIndices: [...high].reverse(), strumSeconds: -STRUM_SECONDS, velocity: UP_VELOCITY };
       });
 
     case 'arp-up': {

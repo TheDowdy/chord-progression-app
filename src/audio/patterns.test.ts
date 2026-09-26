@@ -49,6 +49,13 @@ describe('renderPattern', () => {
     expect(strikes[1].strumSeconds).toBeLessThan(0);
   });
 
+  it('strum-updown up-strokes are high-to-low, skip the bass and are lighter', () => {
+    const [down, up] = renderPattern('strum-updown', 3, 2, timeSig);
+    expect(down.noteIndices).toEqual([0, 1, 2, 3]);
+    expect(up.noteIndices).toEqual([3, 2, 1]);
+    expect(up.velocity ?? 1).toBeLessThan(down.velocity ?? 1);
+  });
+
   it('arp-up cycles through the upper notes only, two per beat', () => {
     const strikes = renderPattern('arp-up', 2, 2, timeSig); // upper indices [1, 2]
     expect(strikes).toHaveLength(4);

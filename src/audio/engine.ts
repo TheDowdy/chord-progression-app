@@ -20,6 +20,7 @@ export interface NoteStrike {
   durationBeats: number;
   midi: number[];
   strumSeconds?: number;
+  velocity?: number;
 }
 
 export interface PlaybackOptions {
@@ -147,9 +148,9 @@ class GuitarVoice {
     }).connect(getBus());
   }
 
-  triggerAttackRelease(notes: string | string[], duration: Tone.Unit.Time, time?: Tone.Unit.Time): void {
+  triggerAttackRelease(notes: string | string[], duration: Tone.Unit.Time, time?: Tone.Unit.Time, velocity?: number): void {
     const ring = Math.max(Tone.Time(duration).toSeconds(), GUITAR_MIN_RING);
-    (this.recorded ?? this.sampler).triggerAttackRelease(notes, ring, time);
+    (this.recorded ?? this.sampler).triggerAttackRelease(notes, ring, time, velocity);
   }
 
   releaseAll(): void {
@@ -268,9 +269,9 @@ export async function previewStrikes(strikes: NoteStrike[], instrument: Instrume
     const at = start + strike.offsetBeats * secPerBeat;
     const seconds = strike.durationBeats * secPerBeat * 0.97;
     if (strike.strumSeconds && names.length > 1) {
-      names.forEach((n, i) => voice?.triggerAttackRelease(n, seconds, at + i * Math.abs(strike.strumSeconds ?? 0)));
+      names.forEach((n, i) => voice?.triggerAttackRelease(n, seconds, at + i * Math.abs(strike.strumSeconds ?? 0), strike.velocity));
     } else {
-      voice?.triggerAttackRelease(names, seconds, at);
+      voice?.triggerAttackRelease(names, seconds, at, strike.velocity);
     }
   }
 }
@@ -297,9 +298,9 @@ function scheduleEvents(strikes: NoteStrike[], options: PlaybackOptions): number
     transport.schedule((time) => {
       const seconds = Tone.Ticks(durTicks).toSeconds();
       if (strike.strumSeconds && names.length > 1) {
-        names.forEach((n, i) => voice?.triggerAttackRelease(n, seconds * 0.97, time + i * Math.abs(strike.strumSeconds ?? 0)));
+        names.forEach((n, i) => voice?.triggerAttackRelease(n, seconds * 0.97, time + i * Math.abs(strike.strumSeconds ?? 0), strike.velocity));
       } else {
-        voice?.triggerAttackRelease(names, seconds * 0.97, time);
+        voice?.triggerAttackRelease(names, seconds * 0.97, time, strike.velocity);
       }
       if (strike.isChordStart) Tone.getDraw().schedule(() => onEvent(strike.eventId), time);
     }, `${startTick}i`);

@@ -25,6 +25,7 @@ export function toNoteStrikes(song: Song): NoteStrike[] {
         durationBeats: s.duration,
         midi: s.noteIndices.map((idx) => voicing[idx]).filter((n): n is number => n !== undefined),
         strumSeconds: s.strumSeconds,
+        velocity: s.velocity,
       });
     });
   }
@@ -43,6 +44,7 @@ export function previewChordInSong(chord: ChordRef, beats?: number): Promise<voi
     durationBeats: s.duration,
     midi: s.noteIndices.map((idx) => voicing[idx]).filter((n): n is number => n !== undefined),
     strumSeconds: s.strumSeconds,
+    velocity: s.velocity,
   }));
   return previewStrikes(strikes, song.instrument, song.bpm);
 }
