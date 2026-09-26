@@ -96,7 +96,7 @@ function SavedRow({ meta, currentId, onChanged }: { meta: SongMeta; currentId: s
 
 /** Section 10: save/load (autosave already runs in the background via useAutosave), JSON
  *  import/export as a backup, and MIDI export. */
-export default function SongPanel() {
+export default function SongPanel({ onOpenSheet }: { onOpenSheet: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [, setVersion] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
@@ -166,13 +166,16 @@ export default function SongPanel() {
           aria-label="Save, load and export"
           className={`h-10 shrink-0 rounded-lg border px-3 text-sm font-medium ${expanded ? 'border-accent text-accent' : 'border-line text-muted hover:bg-surface-2'}`}
         >
-          {expanded ? 'Songs ▴' : 'Songs ▾'}
+          {expanded ? 'File ▴' : 'File ▾'}
         </button>
       </div>
 
       {expanded && (
         <div className="mt-3 space-y-3 border-t border-line pt-3">
           <div className="flex flex-wrap gap-1.5 text-sm">
+            <button onClick={onOpenSheet} disabled={!hasChords} className="rounded-lg border border-line px-3 py-1.5 font-medium hover:bg-surface-2 disabled:opacity-40">
+              Sheet music
+            </button>
             <button onClick={startNewSong} className="rounded-lg border border-line px-3 py-1.5 font-medium hover:bg-surface-2">
               New song
             </button>
