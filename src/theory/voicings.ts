@@ -11,22 +11,6 @@ function atOrAbove(floor: number, pitchClass: number): number {
   return floor + ((pitchClass - floor) % 12 + 12) % 12;
 }
 
-/** The MIDI note with the given pitch class closest to `target`. */
-function nearestTo(pitchClass: number, target: number): number {
-  const pc = ((pitchClass % 12) + 12) % 12;
-  let best = pc;
-  let bestDist = Infinity;
-  for (let octave = -1; octave <= 9; octave++) {
-    const note = pc + octave * 12;
-    const dist = Math.abs(note - target);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = note;
-    }
-  }
-  return best;
-}
-
 /** The chord's stack, starting from its inversion's bass tone (root position if not inverted). */
 function orderedStack(chord: ChordRef): string[] {
   const stack = chordStack(chord);
@@ -52,12 +36,18 @@ export function pianoVoicing(chord: ChordRef): number[] {
   return [bass, ...upper];
 }
 
+/** The register the upper voices are drawn back toward, and the ceiling they may not pass. */
+const REGISTER_CENTRE = 60;
+const UPPER_CEILING = 76;
+const LOWEST_BASS_TONE = 41;
+
 /**
  * Voice `chord` to move as little as possible from the chord before it (section 8.4). `prev` is
  * the previous call's return value, or null for the first chord in a song (falls back to
- * `pianoVoicing`'s close position). Each voice tracks its own position from the previous chord's
- * same slot, so a held common tone truly stays put; the chosen inversion's bass tone always stays
- * the lowest upper note, and the bass register doubles it below.
+ * `pianoVoicing`'s close position). Every octave placement of the chord's tones is considered
+ * (the chosen inversion's bass tone always the lowest upper note, doubled below in the bass
+ * register); the one whose notes sit closest to the previous chord's wins, with a gentle pull
+ * toward the middle of the keyboard so a long progression can't wander up or down the register.
  */
 export function voiceLeadChord(chord: ChordRef, prev: number[] | null): number[] {
   const ordered = orderedStack(chord);
@@ -66,19 +56,30 @@ export function voiceLeadChord(chord: ChordRef, prev: number[] | null): number[]
   if (!prev || prev.length < 2) return pianoVoicing(chord);
 
   const prevUpper = prev.slice(1);
-  const raw = pitchClasses.map((pc, i) => nearestTo(pc, prevUpper[Math.min(i, prevUpper.length - 1)]));
-
-  // Each voice tracks toward its previous position, but never below the bass tone (a voice
-  // crossing there would muddy the chord); the rest stay ascending above it.
-  const bassNote = raw[0];
-  const rest = raw
-    .slice(1)
-    .map((n) => {
-      while (n <= bassNote) n += 12;
-      return n;
-    })
-    .sort((a, b) => a - b);
-
   const bass = atOrAbove(BASS_FLOOR, pitchClasses[0]);
-  return [bass, bassNote, ...rest];
+  const lowestBass = atOrAbove(UPPER_FLOOR, pitchClasses[0]);
+
+  let best: number[] | null = null;
+  let bestCost = Infinity;
+  // The bass tone may sit an octave below the usual floor (down to G2) when that keeps common tones still.
+  for (const bassTone of [lowestBass - 12, lowestBass, lowestBass + 12].filter((n) => n >= LOWEST_BASS_TONE)) {
+    // Every octave choice for the other tones within two octaves above the bass tone.
+    let partials: number[][] = [[bassTone]];
+    for (const pc of pitchClasses.slice(1)) {
+      const low = atOrAbove(bassTone + 1, pc);
+      partials = partials.flatMap((p) => [[...p, low], [...p, low + 12]]);
+    }
+    for (const cand of partials) {
+      const upper = [cand[0], ...cand.slice(1).sort((a, b) => a - b)];
+      const top = upper[upper.length - 1];
+      const movement = upper.reduce((sum, n) => sum + Math.min(...prevUpper.map((p) => Math.abs(n - p))), 0);
+      const centre = upper.reduce((sum, n) => sum + n, 0) / upper.length;
+      const cost = movement + 0.25 * Math.abs(centre - REGISTER_CENTRE) + (top > UPPER_CEILING ? 100 : 0);
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = upper;
+      }
+    }
+  }
+  return [bass, ...(best as number[])];
 }

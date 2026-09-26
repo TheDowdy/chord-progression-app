@@ -58,6 +58,30 @@ describe('voiceLeadChord', () => {
     }
     expect(ledMovement).toBeLessThan(resetMovement);
   });
+  it('does not drift up or down the keyboard over long progressions', () => {
+    for (const seq of [[0, 3, 5, 4], [0, 4, 5, 3], [0, 1, 2, 3, 4, 5, 6], [0, 5, 3, 4, 2, 1]]) {
+      let prev: number[] | null = null;
+      for (let round = 0; round < 12; round++) {
+        for (const degree of seq) {
+          prev = voiceLeadChord(diatonicChord(c, degree), prev);
+          const upper = prev.slice(1);
+          expect(Math.min(...upper)).toBeGreaterThanOrEqual(41);
+          expect(Math.max(...upper)).toBeLessThanOrEqual(76);
+        }
+      }
+    }
+  });
+  it('a chord revisited later sounds in the same register as before', () => {
+    let prev: number[] | null = null;
+    const registers: number[] = [];
+    for (let round = 0; round < 6; round++) {
+      for (const degree of [0, 3, 5, 4]) {
+        prev = voiceLeadChord(diatonicChord(c, degree), prev);
+        if (degree === 0) registers.push(prev.slice(1).reduce((a, b) => a + b, 0) / (prev.length - 1));
+      }
+    }
+    expect(Math.max(...registers) - Math.min(...registers)).toBeLessThanOrEqual(12);
+  });
   it('keeps the chosen inversion in the bass', () => {
     const I = diatonicChord(c, 0);
     const first = withInversion(I, 1, c); // C/E
