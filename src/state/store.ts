@@ -44,6 +44,9 @@ interface AppState {
   /** Armed by the timeline's "replace" control: the next chord added from the map replaces this
    *  event instead of inserting after it. */
   replaceTargetId: string | null;
+  /** The piano/guitar panel under the timeline stays open as different chords are selected. */
+  chordDetailOpen: boolean;
+  setChordDetailOpen: (open: boolean) => void;
   startReplace: (id: string) => void;
   cancelReplace: () => void;
 
@@ -205,6 +208,8 @@ export const useStore = create<AppState>((set) => ({
     }),
 
   replaceTargetId: null,
+  chordDetailOpen: false,
+  setChordDetailOpen: (chordDetailOpen) => set({ chordDetailOpen }),
   startReplace: (id) => set({ replaceTargetId: id, selectedEventId: id }),
   cancelReplace: () => set({ replaceTargetId: null }),
 

@@ -224,7 +224,8 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
   const setActiveSection = useStore((s) => s.setActiveSection);
   const reorderSections = useStore((s) => s.reorderSections);
   const [flavorId, setFlavorId] = useState<string | null>(null);
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const detailOpen = useStore((s) => s.chordDetailOpen);
+  const setDetailOpen = useStore((s) => s.setChordDetailOpen);
 
   const activeId = isPlaying && playingId ? playingId : selectedId;
   const barLength = song.timeSig.beats;
@@ -236,7 +237,7 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
   });
   const toolbarEvent = section.events.find((e) => e.id === selectedId);
   const flavorEvent = section.events.find((e) => e.id === flavorId && e.id === selectedId);
-  const detailEvent = section.events.find((e) => e.id === detailId && e.id === selectedId);
+  const detailEvent = detailOpen ? toolbarEvent : undefined;
 
   return (
     <section
@@ -328,15 +329,14 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
         <ChordToolbar
           event={toolbarEvent}
           flavorOpen={toolbarEvent.id === flavorId}
-          detailOpen={toolbarEvent.id === detailId}
+          detailOpen={detailOpen}
           replacing={toolbarEvent.id === replaceTargetId}
           onFlavor={() => {
-            setDetailId(null);
             setFlavorId(flavorId === toolbarEvent.id ? null : toolbarEvent.id);
           }}
           onDetail={() => {
             setFlavorId(null);
-            setDetailId(detailId === toolbarEvent.id ? null : toolbarEvent.id);
+            setDetailOpen(!detailOpen);
           }}
         />
       )}
@@ -353,7 +353,7 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
       )}
       {detailEvent && (
         <div className="mt-2">
-          <ChordDetail chord={detailEvent.chord} onClose={() => setDetailId(null)} />
+          <ChordDetail chord={detailEvent.chord} onClose={() => setDetailOpen(false)} />
         </div>
       )}
     </section>
