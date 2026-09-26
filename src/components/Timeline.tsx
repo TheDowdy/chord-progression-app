@@ -175,6 +175,7 @@ function ChordToolbar({
   onDetail: () => void;
 }) {
   const removeEvent = useStore((s) => s.removeEvent);
+  const duplicateEvent = useStore((s) => s.duplicateEvent);
   const setEventBeats = useStore((s) => s.setEventBeats);
   const startReplace = useStore((s) => s.startReplace);
   const cancelReplace = useStore((s) => s.cancelReplace);
@@ -199,6 +200,7 @@ function ChordToolbar({
       <button onClick={() => (replacing ? cancelReplace() : startReplace(event.id))} aria-pressed={replacing} className={btn}>
         {replacing ? 'Cancel replace' : 'Replace'}
       </button>
+      <button onClick={() => duplicateEvent(event.id)} className={btn}>Duplicate</button>
       <button onClick={() => removeEvent(event.id)} className={btn}>Remove</button>
     </div>
   );
@@ -279,7 +281,7 @@ function SectionBlock({ section, isOnly }: { section: Section; isOnly: boolean }
         </div>
         <div className="flex items-center gap-1 text-sm text-muted">
           <button onClick={() => duplicateSection(section.id)} className="rounded-lg px-2 py-1 hover:bg-surface-2">
-            Duplicate
+            Duplicate section
           </button>
           {section.events.length > 0 && (
             <button onClick={() => clearSection(section.id)} className="rounded-lg px-2 py-1 hover:bg-surface-2">

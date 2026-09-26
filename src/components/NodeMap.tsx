@@ -168,6 +168,28 @@ export default function NodeMap({ musicKey, center, suggestions, startRing, onPr
                 </text>
               </>
             )}
+            {center && (
+              <g
+                transform={`translate(${R_CENTER * 0.74} ${-R_CENTER * 0.74})`}
+                role="button"
+                tabIndex={0}
+                aria-label={`Add another ${chordName(center)} to the progression`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAdd(center);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onAdd(center);
+                  }
+                }}
+              >
+                <circle r={15} fill="var(--accent)" stroke="var(--surface)" strokeWidth={2} />
+                <path d="M -6 0 H 6 M 0 -6 V 6" stroke="var(--accent-fg)" strokeWidth={3} strokeLinecap="round" />
+              </g>
+            )}
           </g>
           </g>
 

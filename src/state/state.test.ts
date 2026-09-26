@@ -240,6 +240,33 @@ describe('store', () => {
     expect(chordName(useStore.getState().song.sections[1].events[0].chord)).toBe('C');
   });
 
+  it('duplicateSection puts the copy in the arrangement right after its source', () => {
+    const s = useStore.getState();
+    s.addChord(I);
+    const verseId = useStore.getState().song.sections[0].id;
+    s.addSection('Chorus');
+    s.duplicateSection(verseId);
+    const song = useStore.getState().song;
+    const copyId = song.sections[1].id;
+    expect(song.arrangement.indexOf(copyId)).toBe(song.arrangement.indexOf(verseId) + 1);
+    expect(flattenSong(song).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('duplicateEvent inserts an identical block after the original and selects it', () => {
+    const s = useStore.getState();
+    s.addChord(I);
+    s.addChord(V);
+    const [first] = useStore.getState().song.sections[0].events;
+    s.duplicateEvent(first.id);
+    const st = useStore.getState();
+    const events = st.song.sections[0].events;
+    expect(events).toHaveLength(3);
+    expect(events[1].id).not.toBe(first.id);
+    expect(chordName(events[1].chord)).toBe(chordName(first.chord));
+    expect(events[1].beats).toBe(first.beats);
+    expect(st.selectedEventId).toBe(events[1].id);
+  });
+
   it('reorderEvents moves a chord within its section', () => {
     const s = useStore.getState();
     s.addChord(I);

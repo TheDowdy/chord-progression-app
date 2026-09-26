@@ -31,6 +31,8 @@ interface AppState {
 
   addChord: (chord: ChordRef) => void;
   removeEvent: (id: string) => void;
+  /** Insert a copy of a chord block right after it and select the copy. */
+  duplicateEvent: (id: string) => void;
   /** Replace a placed event's chord in place (flavor, inversion, or an entirely different chord). */
   setEventChord: (id: string, chord: ChordRef) => void;
   setEventBeats: (id: string, beats: number) => void;
@@ -126,6 +128,16 @@ export const useStore = create<AppState>((set) => ({
       events.splice(at < 0 ? events.length : at + 1, 0, event);
       const song = withSection(s.song, active.id, { ...active, events });
       return { song, selectedEventId: event.id, activeSectionId: active.id };
+    }),
+
+  duplicateEvent: (id) =>
+    set((s) => {
+      const found = findEvent(s.song, id);
+      if (!found) return s;
+      const { section, index } = found;
+      const copy = { ...section.events[index], id: newId() };
+      const events = [...section.events.slice(0, index + 1), copy, ...section.events.slice(index + 1)];
+      return { song: withSection(s.song, section.id, { ...section, events }), selectedEventId: copy.id };
     }),
 
   removeEvent: (id) =>
@@ -239,7 +251,11 @@ export const useStore = create<AppState>((set) => ({
         events: source.events.map((e) => ({ ...e, id: newId() })),
       };
       const sections = [...s.song.sections.slice(0, at + 1), clone, ...s.song.sections.slice(at + 1)];
-      return { song: touch({ ...s.song, sections }), activeSectionId: clone.id };
+      // The copy must be in the arrangement or it never plays: put it right after its source.
+      const arrangement = [...s.song.arrangement];
+      const inArr = arrangement.indexOf(id);
+      arrangement.splice(inArr < 0 ? arrangement.length : inArr + 1, 0, clone.id);
+      return { song: touch({ ...s.song, sections, arrangement }), activeSectionId: clone.id };
     }),
 
   removeSection: (id) =>
