@@ -33,8 +33,7 @@ export default function App() {
     <div className="min-h-dvh pb-44 lg:pb-10">
       <div className="mx-auto max-w-3xl space-y-4 px-4 pt-5">
         <header>
-          <h1 className="text-2xl font-bold tracking-tight">Chord Builder</h1>
-          <p className="text-sm text-muted">Pick a key, pick a chord, and see where you could go next.</p>
+          <h1 className="text-xl font-semibold tracking-tight">Chord Builder</h1>
         </header>
         <SongPanel />
         <KeyPicker />

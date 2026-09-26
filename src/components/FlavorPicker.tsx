@@ -40,13 +40,13 @@ export default function FlavorPicker({ chord, musicKey, onPreview, onChoose, onC
         <h3 className="font-semibold">
           {chordName(chord)} <span className="font-normal text-muted">({chord.numeral})</span>
         </h3>
-        <button onClick={onClose} aria-label="Close flavor picker" className="grid size-8 place-items-center rounded-full text-lg text-muted hover:bg-surface-2">
+        <button onClick={onClose} aria-label="Close flavor picker" className="grid size-8 place-items-center rounded-lg text-lg text-muted hover:bg-surface-2">
           ×
         </button>
       </div>
 
       <div>
-        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">Flavor</p>
+        <p className="mb-1.5 text-xs font-medium text-muted">Flavor</p>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Flavor">
           {FLAVORS.map((f) => {
             const active = chord.flavor === f;
@@ -67,7 +67,7 @@ export default function FlavorPicker({ chord, musicKey, onPreview, onChoose, onC
       </div>
 
       <div>
-        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">Inversion</p>
+        <p className="mb-1.5 text-xs font-medium text-muted">Inversion</p>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Inversion">
           {Array.from({ length: invCount }, (_, i) => i).map((i) => {
             const active = i === currentInversion;

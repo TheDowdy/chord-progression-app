@@ -63,30 +63,30 @@ function SavedRow({ meta, currentId, onChanged }: { meta: SongMeta; currentId: s
           onBlur={commitRename}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           aria-label="Song title"
-          className="h-8 min-w-0 flex-1 rounded-md border border-line bg-surface px-2"
+          className="h-8 min-w-0 flex-1 rounded-lg border border-line bg-surface px-2"
         />
       ) : (
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{meta.title || 'Untitled song'}</p>
           <p className="text-xs text-muted">
-            {isCurrent && <span className="mr-1.5 rounded-full bg-accent px-2 py-0.5 font-semibold text-accent-fg">Open now · autosaves</span>}
+            {isCurrent && <span className="mr-1.5 rounded-lg bg-accent px-2 py-0.5 font-semibold text-accent-fg">Open now · autosaves</span>}
             {formatDate(meta.updatedAt)}
           </p>
         </div>
       )}
       <div className="flex shrink-0 items-center gap-1 text-xs">
         {!isCurrent && (
-          <button onClick={open} className="rounded-md px-2 py-1 hover:bg-surface-2">
+          <button onClick={open} className="rounded-lg px-2 py-1 hover:bg-surface-2">
             Open
           </button>
         )}
-        <button onClick={() => setRenaming((v) => !v)} className="rounded-md px-2 py-1 hover:bg-surface-2">
+        <button onClick={() => setRenaming((v) => !v)} className="rounded-lg px-2 py-1 hover:bg-surface-2">
           Rename
         </button>
-        <button onClick={duplicate} className="rounded-md px-2 py-1 hover:bg-surface-2">
+        <button onClick={duplicate} className="rounded-lg px-2 py-1 hover:bg-surface-2">
           Duplicate
         </button>
-        <button onClick={remove} className="rounded-md px-2 py-1 text-red-500 hover:bg-surface-2">
+        <button onClick={remove} className="rounded-lg px-2 py-1 text-red-500 hover:bg-surface-2">
           Delete
         </button>
       </div>

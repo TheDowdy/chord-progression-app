@@ -35,7 +35,7 @@ export default function KeyPicker() {
     <section aria-label="Key" className="space-y-3">
       <div>
         <div className="mb-1.5 flex items-center justify-between gap-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Root note</h2>
+          <h2 className="text-xs font-medium text-muted">Root note</h2>
           {spellings.length > 1 && (
             <div className="flex items-center gap-1.5" role="group" aria-label="Spelling">
               <span className="text-xs text-muted">Spell as</span>
@@ -44,7 +44,7 @@ export default function KeyPicker() {
                   key={n}
                   onClick={() => request({ ...key, tonic: n })}
                   aria-pressed={n === key.tonic}
-                  className={`min-w-9 rounded-md border px-2 py-0.5 text-sm ${
+                  className={`min-w-9 rounded-lg border px-2 py-0.5 text-sm ${
                     n === key.tonic ? 'border-accent bg-accent text-accent-fg' : 'border-line bg-surface'
                   }`}
                 >
@@ -75,7 +75,7 @@ export default function KeyPicker() {
       </div>
 
       <div>
-        <label htmlFor="mode" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
+        <label htmlFor="mode" className="mb-1.5 block text-xs font-medium text-muted">
           Scale / mode
         </label>
         <select

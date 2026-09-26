@@ -45,7 +45,7 @@ export default function ChordDetail({ chord, onClose }: Props) {
         <h3 className="font-semibold">
           {chordName(chord)} <span className="font-normal text-muted">({chord.numeral})</span>
         </h3>
-        <button onClick={onClose} aria-label="Close chord detail" className="grid size-8 place-items-center rounded-full text-lg text-muted hover:bg-surface-2">
+        <button onClick={onClose} aria-label="Close chord detail" className="grid size-8 place-items-center rounded-lg text-lg text-muted hover:bg-surface-2">
           ×
         </button>
       </div>
@@ -56,7 +56,7 @@ export default function ChordDetail({ chord, onClose }: Props) {
             key={v}
             onClick={() => choose(v)}
             aria-pressed={view === v}
-            className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium capitalize ${view === v ? 'bg-accent text-accent-fg' : 'text-muted hover:text-fg'}`}
+            className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium capitalize ${view === v ? 'bg-accent text-accent-fg' : 'text-muted hover:text-fg'}`}
           >
             {v}
           </button>

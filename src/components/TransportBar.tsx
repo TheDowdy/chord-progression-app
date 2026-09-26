@@ -79,7 +79,7 @@ export default function TransportBar() {
     <div
       role="toolbar"
       aria-label="Playback"
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:static lg:rounded-2xl lg:border lg:pb-3"
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:static lg:rounded-xl lg:border lg:pb-3"
     >
       <div className="mx-auto max-w-3xl space-y-3 lg:max-w-none">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -157,7 +157,7 @@ export default function TransportBar() {
         {expanded && (
           <div className="flex flex-wrap items-end gap-x-5 gap-y-3 border-t border-line pt-3">
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Time signature</label>
+              <label className="mb-1 block text-xs font-medium text-muted">Time signature</label>
               <div className="flex items-center gap-1">
                 <input
                   type="number"
@@ -185,7 +185,7 @@ export default function TransportBar() {
             </div>
 
             <div>
-              <label htmlFor="instrument" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              <label htmlFor="instrument" className="mb-1 block text-xs font-medium text-muted">
                 Instrument
               </label>
               <select
@@ -203,7 +203,7 @@ export default function TransportBar() {
             </div>
 
             <div>
-              <label htmlFor="pattern" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              <label htmlFor="pattern" className="mb-1 block text-xs font-medium text-muted">
                 Pattern
               </label>
               <select

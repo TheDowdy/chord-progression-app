@@ -58,7 +58,7 @@ function NodeLabel({ chord, r }: { chord: ChordRef; r: number }) {
       <text y={-3} textAnchor="middle" fontSize={size} fontWeight={700} fill="var(--fg)">
         {name}
       </text>
-      <text y={r * 0.42} textAnchor="middle" fontSize={r > 40 ? 13 : 11} fill="var(--muted)">
+      <text y={r * 0.42} textAnchor="middle" fontSize={r > 40 ? 13 : 11} fill="var(--muted)" className="font-mono">
         {chord.numeral}
       </text>
     </>

@@ -130,8 +130,8 @@ function ChordSlot({
           className="absolute inset-0 flex flex-col items-center justify-center pr-3"
         >
           <span className="text-base font-bold leading-tight">{chordName(event.chord)}</span>
-          <span className={`text-xs ${playing ? '' : 'text-muted'}`}>{event.chord.numeral}</span>
-          <span className={`mt-1 text-lg font-semibold leading-none ${playing ? '' : 'text-muted'}`}>{shownBeats}</span>
+          <span className={`font-mono text-xs ${playing ? '' : 'text-muted'}`}>{event.chord.numeral}</span>
+          <span className={`mt-1 font-mono text-lg font-medium leading-none ${playing ? '' : 'text-muted'}`}>{shownBeats}</span>
         </button>
         <div
           role="slider"
@@ -242,7 +242,7 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
     <section
       aria-label={`Section: ${section.name}`}
       onClick={() => setActiveSection(section.id)}
-      className={`rounded-2xl border p-3 ${section.id === activeSectionId ? 'border-accent bg-surface' : 'border-line bg-surface'}`}
+      className={`rounded-xl border p-3 ${section.id === activeSectionId ? 'border-accent bg-surface' : 'border-line bg-surface'}`}
     >
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -250,13 +250,13 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
             value={section.name}
             onChange={(e) => renameSection(section.id, e.target.value)}
             aria-label="Section name"
-            className="w-28 rounded-md border border-transparent bg-transparent px-1 font-semibold hover:border-line focus:border-line"
+            className="w-28 rounded-lg border border-transparent bg-transparent px-1 font-semibold hover:border-line focus:border-line"
           />
           <div className="flex items-center gap-1 text-sm text-muted">
             <button
               onClick={() => setSectionRepeat(section.id, section.repeat - 1)}
               aria-label="Fewer repeats"
-              className="grid size-6 place-items-center rounded-full hover:bg-surface-2"
+              className="grid size-6 place-items-center rounded-lg hover:bg-surface-2"
             >
               –
             </button>
@@ -264,7 +264,7 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
             <button
               onClick={() => setSectionRepeat(section.id, section.repeat + 1)}
               aria-label="More repeats"
-              className="grid size-6 place-items-center rounded-full hover:bg-surface-2"
+              className="grid size-6 place-items-center rounded-lg hover:bg-surface-2"
             >
               +
             </button>
@@ -275,7 +275,7 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
             onClick={() => reorderSections(index, index - 1)}
             disabled={index === 0}
             aria-label={`Move ${section.name} earlier`}
-            className="grid size-7 place-items-center rounded-full hover:bg-surface-2 disabled:opacity-30"
+            className="grid size-7 place-items-center rounded-lg hover:bg-surface-2 disabled:opacity-30"
           >
             ▲
           </button>
@@ -283,20 +283,20 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
             onClick={() => reorderSections(index, index + 1)}
             disabled={index === total - 1}
             aria-label={`Move ${section.name} later`}
-            className="grid size-7 place-items-center rounded-full hover:bg-surface-2 disabled:opacity-30"
+            className="grid size-7 place-items-center rounded-lg hover:bg-surface-2 disabled:opacity-30"
           >
             ▼
           </button>
-          <button onClick={() => duplicateSection(section.id)} className="rounded-md px-2 py-1 hover:bg-surface-2">
+          <button onClick={() => duplicateSection(section.id)} className="rounded-lg px-2 py-1 hover:bg-surface-2">
             Duplicate
           </button>
           {section.events.length > 0 && (
-            <button onClick={() => clearSection(section.id)} className="rounded-md px-2 py-1 hover:bg-surface-2">
+            <button onClick={() => clearSection(section.id)} className="rounded-lg px-2 py-1 hover:bg-surface-2">
               Clear
             </button>
           )}
           {!isOnly && (
-            <button onClick={() => removeSection(section.id)} aria-label={`Delete ${section.name}`} className="rounded-md px-2 py-1 hover:bg-surface-2">
+            <button onClick={() => removeSection(section.id)} aria-label={`Delete ${section.name}`} className="rounded-lg px-2 py-1 hover:bg-surface-2">
               Delete
             </button>
           )}
@@ -384,8 +384,8 @@ function ArrangementRow() {
   const nameFor = (id: string) => sections.find((s) => s.id === id)?.name ?? '?';
 
   return (
-    <section aria-label="Arrangement" className="rounded-2xl border border-line bg-surface p-3">
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Arrangement</h2>
+    <section aria-label="Arrangement" className="rounded-xl border border-line bg-surface p-3">
+      <h2 className="mb-2 text-xs font-medium text-muted">Arrangement</h2>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={ids} strategy={horizontalListSortingStrategy}>
           <ol className="flex flex-wrap items-center gap-1.5">
@@ -403,7 +403,7 @@ function ArrangementRow() {
               addArrangementSlot(s.id);
               setActiveSection(s.id);
             }}
-            className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+            className={`rounded-lg border px-2.5 py-1 text-xs font-medium ${
               s.id === activeSectionId ? 'border-accent text-accent' : 'border-line text-muted hover:bg-surface-2'
             }`}
           >
@@ -423,7 +423,7 @@ function ArrangementChip({ id, name, onRemove }: { id: string; name: string; onR
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
       {...attributes}
       {...listeners}
-      className="flex items-center gap-1 rounded-full border border-line bg-surface-2 py-1 pl-3 pr-1 text-sm"
+      className="flex items-center gap-1 rounded-lg border border-line bg-surface-2 py-1 pl-3 pr-1 text-sm"
     >
       {name}
       <button
@@ -433,7 +433,7 @@ function ArrangementChip({ id, name, onRemove }: { id: string; name: string; onR
           onRemove();
         }}
         aria-label={`Remove ${name} from arrangement`}
-        className="grid size-6 place-items-center rounded-full text-sm opacity-70 hover:opacity-100"
+        className="grid size-6 place-items-center rounded-lg text-sm opacity-70 hover:opacity-100"
       >
         ×
       </button>
