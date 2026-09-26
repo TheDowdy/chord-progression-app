@@ -113,3 +113,9 @@ input:focus-visible,
     animation: none;
   }
 }
+
+/* A chunky, always-visible scrollbar for the timeline rows (the default is a hairline on phones). */
+.timeline-scroll { scrollbar-width: auto; scrollbar-color: var(--muted) var(--surface-2); }
+.timeline-scroll::-webkit-scrollbar { height: 12px; }
+.timeline-scroll::-webkit-scrollbar-track { background: var(--surface-2); border-radius: 6px; }
+.timeline-scroll::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 6px; }

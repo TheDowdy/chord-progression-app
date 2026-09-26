@@ -2,7 +2,8 @@ import { useState } from 'react';
 import {
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCenter,
   useDroppable,
   useSensor,
@@ -28,6 +29,10 @@ const ORIGIN_COLOR = {
   borrowed: 'var(--c-borrowed)',
   secondary: 'var(--c-secondary)',
 };
+
+/** On touch, a block only starts dragging after a short press-and-hold, so a plain swipe over it
+ *  scrolls the timeline instead of being swallowed by drag detection. */
+const TOUCH_DRAG = { activationConstraint: { delay: 250, tolerance: 8 } };
 
 const QUICK_ADD = ['Verse', 'Chorus', 'Bridge'];
 
@@ -122,7 +127,7 @@ function ChordSlot({
           {...listeners}
           aria-pressed={active}
           aria-label={`Chord: ${chordName(event.chord)}, ${event.chord.numeral}, ${event.beats} beats`}
-          className="absolute inset-0 flex flex-col items-center justify-center pr-3 touch-none"
+          className="absolute inset-0 flex flex-col items-center justify-center pr-3"
         >
           <span className="text-base font-bold leading-tight">{chordName(event.chord)}</span>
           <span className={`text-xs ${playing ? '' : 'text-muted'}`}>{event.chord.numeral}</span>
@@ -137,7 +142,7 @@ function ChordSlot({
           aria-valuemax={BEATS_MAX}
           onPointerDown={onResizeDown}
           onKeyDown={onResizeKey}
-          className="absolute right-0 top-0 flex h-full w-3 cursor-ew-resize touch-none items-center justify-center bg-black/10 hover:bg-black/25"
+          className="absolute right-0 top-0 flex h-full w-5 cursor-ew-resize touch-none items-center justify-center bg-black/10 hover:bg-black/25"
         >
           <span className="h-6 w-0.5 rounded bg-current opacity-60" />
         </div>
@@ -302,7 +307,7 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
         <EmptyDropZone sectionId={section.id} />
       ) : (
         <SortableContext items={section.events.map((e) => e.id)} strategy={horizontalListSortingStrategy}>
-          <ol className="flex snap-x gap-2 overflow-x-auto pb-2">
+          <ol className="timeline-scroll flex snap-x gap-2 overflow-x-auto overscroll-x-contain pb-3">
             {withOffsets.map(({ event, offset }) => (
               <ChordSlot
                 key={event.id}
@@ -364,7 +369,7 @@ function ArrangementRow() {
   const reorderArrangement = useStore((s) => s.reorderArrangement);
   const setActiveSection = useStore((s) => s.setActiveSection);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
+  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 4 } }), useSensor(TouchSensor, TOUCH_DRAG), useSensor(KeyboardSensor));
   const ids = arrangement.map((sectionId, i) => `${sectionId}#${i}`);
 
   const onDragEnd = (e: DragEndEvent) => {
@@ -442,7 +447,7 @@ export default function Timeline() {
   const reorderEvents = useStore((s) => s.reorderEvents);
   const moveEvent = useStore((s) => s.moveEvent);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 4 } }), useSensor(TouchSensor, TOUCH_DRAG), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
   const sectionOf = (eventId: string) => song.sections.find((sec) => sec.events.some((e) => e.id === eventId));
 
