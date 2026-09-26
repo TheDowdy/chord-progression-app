@@ -53,7 +53,7 @@ export default function App() {
     <div className="min-h-dvh pb-44 lg:pb-10">
       <div className="mx-auto max-w-3xl space-y-4 px-4 pt-5">
         <header className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold tracking-tight">Chord Builder</h1>
+          <h1 className="text-xl font-semibold tracking-tight">Progression Builder</h1>
           <ThemeToggle />
         </header>
         <SongPanel />
