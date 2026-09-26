@@ -24,6 +24,12 @@ import type { ChordEvent, Section } from '../types';
 import ChordDetail from './ChordDetail';
 import FlavorPicker from './FlavorPicker';
 
+const ORIGIN_TINT = {
+  diatonic: 'var(--t-diatonic)',
+  borrowed: 'var(--t-borrowed)',
+  secondary: 'var(--t-secondary)',
+};
+
 const ORIGIN_COLOR = {
   diatonic: 'var(--c-diatonic)',
   borrowed: 'var(--c-borrowed)',
@@ -109,13 +115,14 @@ function ChordSlot({
     >
       <div
         className={`relative h-24 shrink-0 overflow-hidden rounded-xl border-2 text-center transition-colors ${
-          playing ? 'bg-accent text-accent-fg' : 'bg-surface-2'
+          playing ? 'text-[var(--play-fg)]' : ''
         } ${active ? 'shadow-[inset_0_0_0_3px_var(--accent)]' : ''} ${replacing ? 'ring-2 ring-offset-1 ring-[var(--accent)]' : ''}`}
         style={{
           width: shownBeats * BEAT_PX,
           borderColor: ORIGIN_COLOR[event.chord.origin],
+          backgroundColor: playing ? 'var(--play)' : ORIGIN_TINT[event.chord.origin],
           // faint tick at every beat boundary, so the block reads as a length
-          backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${BEAT_PX - 1}px, var(--line) ${BEAT_PX - 1}px, var(--line) ${BEAT_PX}px)`,
+          backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${BEAT_PX - 1}px, color-mix(in srgb, var(--fg) 14%, transparent) ${BEAT_PX - 1}px, color-mix(in srgb, var(--fg) 14%, transparent) ${BEAT_PX}px)`,
         }}
       >
         <button

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import KeyPicker from './components/KeyPicker';
 import NodeMap from './components/NodeMap';
 import SongPanel from './components/SongPanel';
@@ -9,6 +9,26 @@ import { previewChordInSong, useLivePlaybackSync } from './state/playback';
 import { selectCenter, useStore } from './state/store';
 import { startChords, suggestNext } from './theory/suggestions';
 import type { ChordRef } from './theory/types';
+
+function ThemeToggle() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'));
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem('chordbuilder:theme', theme);
+    } catch {
+      // private mode: the choice just won't persist
+    }
+  }, [theme]);
+  return (
+    <button
+      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      className="h-9 rounded-lg border border-line px-3 text-sm font-medium text-muted hover:bg-surface-2"
+    >
+      {theme === 'dark' ? 'Light' : 'Dark'}
+    </button>
+  );
+}
 
 export default function App() {
   useLivePlaybackSync();
@@ -32,8 +52,9 @@ export default function App() {
   return (
     <div className="min-h-dvh pb-44 lg:pb-10">
       <div className="mx-auto max-w-3xl space-y-4 px-4 pt-5">
-        <header>
+        <header className="flex items-center justify-between">
           <h1 className="text-xl font-semibold tracking-tight">Chord Builder</h1>
+          <ThemeToggle />
         </header>
         <SongPanel />
         <KeyPicker />

@@ -95,7 +95,7 @@ export default function TransportBar() {
           <button
             onClick={() => setLoop(!loop)}
             aria-pressed={loop}
-            className={`h-12 rounded-xl border px-4 text-sm font-medium ${loop ? 'border-accent bg-surface-2 text-accent' : 'border-line text-muted'}`}
+            className={`h-12 rounded-xl border px-4 text-sm font-medium ${loop ? 'border-accent bg-surface font-semibold text-fg' : 'border-line text-muted'}`}
           >
             ⟳ Loop {loop ? 'on' : 'off'}
           </button>
@@ -223,7 +223,7 @@ export default function TransportBar() {
             <button
               onClick={() => setMetronome(!metronome)}
               aria-pressed={metronome}
-              className={`h-10 rounded-lg border px-3 text-sm font-medium ${metronome ? 'border-accent bg-surface-2 text-accent' : 'border-line text-muted'}`}
+              className={`h-10 rounded-lg border px-3 text-sm font-medium ${metronome ? 'border-accent bg-surface font-semibold text-fg' : 'border-line text-muted'}`}
             >
               ⏱ Metronome {metronome ? 'on' : 'off'}
             </button>

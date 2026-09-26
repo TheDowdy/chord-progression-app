@@ -11,6 +11,12 @@ const RING = 140;
 const R_CENTER = 46;
 const R_NODE = 33;
 
+const ORIGIN_TINT: Record<Origin, string> = {
+  diatonic: 'var(--t-diatonic)',
+  borrowed: 'var(--t-borrowed)',
+  secondary: 'var(--t-secondary)',
+};
+
 const ORIGIN_COLOR: Record<Origin, string> = {
   diatonic: 'var(--c-diatonic)',
   borrowed: 'var(--c-borrowed)',
@@ -105,8 +111,8 @@ export default function NodeMap({ musicKey, center, suggestions, startRing, onPr
   };
 
   return (
-    <section aria-label="Chord map" className="mx-auto w-full max-w-[560px]">
-      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="map-svg block h-auto w-full" role="group" aria-label="Suggested next chords">
+    <section aria-label="Chord map" className="w-full rounded-xl border border-line bg-surface px-3 pb-3 pt-2 shadow-[var(--shadow)]">
+      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="map-svg mx-auto block h-auto w-full max-w-[520px]" role="group" aria-label="Suggested next chords">
         <defs>
           {(Object.keys(ORIGIN_COLOR) as Origin[]).map((o) => (
             <marker key={o} id={`arrow-${o}`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
@@ -189,7 +195,7 @@ export default function NodeMap({ musicKey, center, suggestions, startRing, onPr
                   }
                 }}
               >
-                <circle className="node-body" r={R_NODE} fill={isFocused ? 'var(--surface-2)' : 'var(--surface)'} stroke={color} strokeWidth={isFocused ? 4 : 2.5} />
+                <circle className="node-body" r={R_NODE} fill={ORIGIN_TINT[n.chord.origin]} stroke={color} strokeWidth={isFocused ? 4.5 : 2} />
                 <NodeLabel chord={n.chord} r={R_NODE} />
                 {n.startHere && (
                   <g transform={`translate(0 ${-R_NODE - 14})`}>
@@ -221,7 +227,7 @@ export default function NodeMap({ musicKey, center, suggestions, startRing, onPr
         </g>
       </svg>
 
-      <div className="min-h-[5.5rem] space-y-2 px-1" aria-live="polite">
+      <div className="mx-auto min-h-[4.5rem] max-w-[520px] space-y-2 px-1" aria-live="polite">
         {focused ? (
           <>
             <div className="flex items-center gap-3 rounded-xl border border-line bg-surface p-3">

@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <script>
+      try {
+        document.documentElement.dataset.theme = localStorage.getItem('chordbuilder:theme') === 'dark' ? 'dark' : 'light';
+      } catch (e) {}
+    </script>
     <title>Chord Builder</title>
   </head>
   <body>

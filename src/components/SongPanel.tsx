@@ -149,7 +149,7 @@ export default function SongPanel() {
   };
 
   return (
-    <div className="rounded-xl border border-line bg-surface p-3">
+    <div className={expanded ? 'rounded-xl border border-line bg-surface p-3' : ''}>
       <div className="flex items-center gap-2">
         <input
           ref={titleInput}
@@ -158,7 +158,7 @@ export default function SongPanel() {
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           placeholder="Song title"
           aria-label="Song title"
-          className="h-10 min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 font-semibold hover:border-line focus:border-line"
+          className="h-11 min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 text-xl font-semibold tracking-tight hover:border-line focus:border-line"
         />
         <button
           onClick={toggle}
