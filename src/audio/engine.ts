@@ -10,7 +10,7 @@ const SAMPLE_NOTES: Record<string, string> = {
   A5: 'A5.mp3', C6: 'C6.mp3',
 };
 
-/** One strike within the whole song: `midi` notes sounded together (or staggered by `strumSeconds`). */
+/** One strike within the whole song: `midi` notes sounded together (or staggered by `strumSeconds`). `midi` is already in strike order (low→high for a down-strum, high→low for an up-strum), so only the size of the stagger is used, not its sign. */
 export interface NoteStrike {
   /** The chord event this strike belongs to, so playback can highlight it. */
   eventId: string;
@@ -268,7 +268,7 @@ export async function previewStrikes(strikes: NoteStrike[], instrument: Instrume
     const at = start + strike.offsetBeats * secPerBeat;
     const seconds = strike.durationBeats * secPerBeat * 0.97;
     if (strike.strumSeconds && names.length > 1) {
-      names.forEach((n, i) => voice?.triggerAttackRelease(n, seconds, at + i * (strike.strumSeconds ?? 0)));
+      names.forEach((n, i) => voice?.triggerAttackRelease(n, seconds, at + i * Math.abs(strike.strumSeconds ?? 0)));
     } else {
       voice?.triggerAttackRelease(names, seconds, at);
     }
@@ -297,7 +297,7 @@ function scheduleEvents(strikes: NoteStrike[], options: PlaybackOptions): number
     transport.schedule((time) => {
       const seconds = Tone.Ticks(durTicks).toSeconds();
       if (strike.strumSeconds && names.length > 1) {
-        names.forEach((n, i) => voice?.triggerAttackRelease(n, seconds * 0.97, time + i * (strike.strumSeconds ?? 0)));
+        names.forEach((n, i) => voice?.triggerAttackRelease(n, seconds * 0.97, time + i * Math.abs(strike.strumSeconds ?? 0)));
       } else {
         voice?.triggerAttackRelease(names, seconds * 0.97, time);
       }
