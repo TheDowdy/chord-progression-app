@@ -92,29 +92,38 @@ export default function TransportBar() {
             {isPlaying ? '■ Stop' : '▶ Play'}
           </button>
 
-          <button
-            onClick={() => setLoop(!loop)}
-            aria-pressed={loop}
-            className={`h-12 rounded-xl border px-4 text-sm font-medium ${loop ? 'border-accent bg-surface font-semibold text-fg' : 'border-line text-muted'}`}
-          >
-            ⟳ Loop {loop ? 'on' : 'off'}
-          </button>
-
-          {loop && (
-            <div role="radiogroup" aria-label="Loop scope" className="flex h-12 items-center rounded-xl border border-line p-1 text-sm">
-              {(['song', 'section'] as const).map((scope) => (
+          <div role="group" aria-label="Loop" className="flex h-12 items-center gap-1 rounded-xl border border-line bg-surface p-1 text-sm">
+            <button
+              role="switch"
+              aria-checked={loop}
+              aria-label="Loop"
+              onClick={() => setLoop(!loop)}
+              className="flex h-full items-center gap-2 rounded-lg px-3 font-medium hover:bg-surface-2"
+            >
+              Loop
+              <span
+                aria-hidden
+                className={`relative h-5 w-9 rounded-full transition-colors ${loop ? 'bg-[var(--play)]' : 'bg-line'}`}
+              >
+                <span className={`absolute top-0.5 size-4 rounded-full bg-surface shadow transition-all ${loop ? 'left-[1.125rem]' : 'left-0.5'}`} />
+              </span>
+            </button>
+            <span aria-hidden className="mx-0.5 h-6 w-px bg-line" />
+            <div role="radiogroup" aria-label="What to loop" className={`flex h-full items-center gap-0.5 transition-opacity ${loop ? '' : 'opacity-40'}`}>
+              {([['song', 'Whole song'], ['section', 'This section']] as const).map(([scope, label]) => (
                 <button
                   key={scope}
                   role="radio"
                   aria-checked={loopScope === scope}
+                  disabled={!loop}
                   onClick={() => setLoopScope(scope)}
-                  className={`h-full rounded-lg px-3 font-medium capitalize ${loopScope === scope ? 'bg-accent text-accent-fg' : 'text-muted'}`}
+                  className={`h-full rounded-lg px-3 font-medium ${loopScope === scope ? 'bg-accent text-accent-fg' : 'text-muted hover:text-fg'}`}
                 >
-                  {scope}
+                  {label}
                 </button>
               ))}
             </div>
-          )}
+          </div>
 
           <div className="flex min-w-[12rem] flex-1 items-center gap-2">
             <label htmlFor="bpm" className="text-sm text-muted">
