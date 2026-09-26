@@ -209,7 +209,7 @@ function EmptyDropZone({ sectionId }: { sectionId: string }) {
   );
 }
 
-function SectionBlock({ section, isOnly, index, total }: { section: Section; isOnly: boolean; index: number; total: number }) {
+function SectionBlock({ section, isOnly }: { section: Section; isOnly: boolean }) {
   const song = useStore((s) => s.song);
   const selectedId = useStore((s) => s.selectedEventId);
   const playingId = useStore((s) => s.playingEventId);
@@ -222,7 +222,6 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
   const setSectionRepeat = useStore((s) => s.setSectionRepeat);
   const clearSection = useStore((s) => s.clearSection);
   const setActiveSection = useStore((s) => s.setActiveSection);
-  const reorderSections = useStore((s) => s.reorderSections);
   const [flavorId, setFlavorId] = useState<string | null>(null);
   const detailOpen = useStore((s) => s.chordDetailOpen);
   const setDetailOpen = useStore((s) => s.setChordDetailOpen);
@@ -272,22 +271,6 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
           </div>
         </div>
         <div className="flex items-center gap-1 text-sm text-muted">
-          <button
-            onClick={() => reorderSections(index, index - 1)}
-            disabled={index === 0}
-            aria-label={`Move ${section.name} earlier`}
-            className="grid size-7 place-items-center rounded-lg hover:bg-surface-2 disabled:opacity-30"
-          >
-            ▲
-          </button>
-          <button
-            onClick={() => reorderSections(index, index + 1)}
-            disabled={index === total - 1}
-            aria-label={`Move ${section.name} later`}
-            className="grid size-7 place-items-center rounded-lg hover:bg-surface-2 disabled:opacity-30"
-          >
-            ▼
-          </button>
           <button onClick={() => duplicateSection(section.id)} className="rounded-lg px-2 py-1 hover:bg-surface-2">
             Duplicate
           </button>
@@ -474,8 +457,8 @@ export default function Timeline() {
     <div className="space-y-3">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <div className="space-y-3">
-          {song.sections.map((section, i) => (
-            <SectionBlock key={section.id} section={section} isOnly={song.sections.length === 1} index={i} total={song.sections.length} />
+          {song.sections.map((section) => (
+            <SectionBlock key={section.id} section={section} isOnly={song.sections.length === 1} />
           ))}
         </div>
       </DndContext>
