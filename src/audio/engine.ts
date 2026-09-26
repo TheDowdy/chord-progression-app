@@ -258,21 +258,43 @@ export async function previewChord(midi: number[], instrument: InstrumentId = 'p
   voiceFor(instrument)?.triggerAttackRelease(noteNames(midi), seconds, Tone.now());
 }
 
-/** Play strikes once, straight away, outside the transport (chord previews with the chosen pattern). */
+/** Timers for a preview's not-yet-sounded notes, so the next preview can cancel them. */
+let previewTimers: ReturnType<typeof setTimeout>[] = [];
+/** How far ahead of a note's start it is handed to the audio engine (keeps timing exact). */
+const PREVIEW_LOOKAHEAD = 0.05;
+
+/** Cut off whatever preview is still sounding or waiting to sound (not the song, if it's playing). */
+function stopPreview(): void {
+  for (const t of previewTimers) clearTimeout(t);
+  previewTimers = [];
+  if (Tone.getTransport().state !== 'started') for (const voice of voices.values()) voice.releaseAll();
+}
+
+/**
+ * Play strikes once, straight away, outside the transport (chord previews with the chosen
+ * pattern). Starting a new preview first cuts off the previous one, notes still to come included.
+ */
 export async function previewStrikes(strikes: NoteStrike[], instrument: InstrumentId, bpm: number): Promise<void> {
+  stopPreview();
   await unlockAudio();
+  stopPreview(); // a second preview may have started while the audio was unlocking
   const voice = voiceFor(instrument);
-  const start = Tone.now() + 0.05;
+  const start = Tone.now() + PREVIEW_LOOKAHEAD;
   const secPerBeat = 60 / bpm;
   for (const strike of strikes) {
     const names = noteNames(strike.midi);
     const at = start + strike.offsetBeats * secPerBeat;
     const seconds = strike.durationBeats * secPerBeat * 0.97;
-    if (strike.strumSeconds && names.length > 1) {
-      names.forEach((n, i) => voice?.triggerAttackRelease(n, seconds, at + i * Math.abs(strike.strumSeconds ?? 0), strike.velocity));
-    } else {
-      voice?.triggerAttackRelease(names, seconds, at, strike.velocity);
-    }
+    const play = () => {
+      if (strike.strumSeconds && names.length > 1) {
+        names.forEach((n, i) => voice?.triggerAttackRelease(n, seconds, at + i * Math.abs(strike.strumSeconds ?? 0), strike.velocity));
+      } else {
+        voice?.triggerAttackRelease(names, seconds, at, strike.velocity);
+      }
+    };
+    const wait = (at - Tone.now() - PREVIEW_LOOKAHEAD) * 1000;
+    if (wait <= 0) play();
+    else previewTimers.push(setTimeout(play, wait));
   }
 }
 
