@@ -110,10 +110,10 @@ function ChordSlot({
       <div
         className={`relative h-24 shrink-0 overflow-hidden rounded-xl border-2 text-center transition-colors ${
           playing ? 'bg-accent text-accent-fg' : 'bg-surface-2'
-        } ${replacing ? 'ring-2 ring-offset-1 ring-[var(--accent)]' : ''}`}
+        } ${active ? 'shadow-[inset_0_0_0_3px_var(--accent)]' : ''} ${replacing ? 'ring-2 ring-offset-1 ring-[var(--accent)]' : ''}`}
         style={{
           width: shownBeats * BEAT_PX,
-          borderColor: active ? 'var(--accent)' : ORIGIN_COLOR[event.chord.origin],
+          borderColor: ORIGIN_COLOR[event.chord.origin],
           // faint tick at every beat boundary, so the block reads as a length
           backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${BEAT_PX - 1}px, var(--line) ${BEAT_PX - 1}px, var(--line) ${BEAT_PX}px)`,
         }}
