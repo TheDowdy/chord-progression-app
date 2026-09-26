@@ -52,47 +52,89 @@ function getBus(): Tone.Gain {
   return masterBus;
 }
 
-/** Guitar's lowest open string (E2); a plucked string modelled below this tends to buzz. */
-const PLUCK_FLOOR = 40;
+/** Lowest / highest MIDI note a guitar sample is rendered for; notes outside are pitch-shifted. */
+const GUITAR_LOW = 38;
+const GUITAR_HIGH = 79;
+/** A struck/plucked string keeps ringing at least this long, whatever the chord's written length. */
+const GUITAR_MIN_RING = 1.1;
 
-/** Raise `note` by octaves until it's at or above `PLUCK_FLOOR`, for the pluck voice only. */
-function liftForPluck(note: string): string {
-  let midi = Tone.Frequency(note).toMidi();
-  while (midi < PLUCK_FLOOR) midi += 12;
-  return Tone.Frequency(midi, 'midi').toNote();
+/**
+ * One plucked-string note rendered offline with the Karplus-Strong algorithm: a burst of noise
+ * circulating through a delay line the length of one pitch period, averaged each pass (which
+ * damps the highs faster than the lows, like a real string). Deterministic, so every note
+ * sounds the same each time it's played.
+ */
+export function renderPluck(midi: number, sampleRate: number, seconds = 3): Float32Array<ArrayBuffer> {
+  const freq = 440 * 2 ** ((midi - 69) / 12);
+  const period = Math.max(2, Math.round(sampleRate / freq));
+  const length = Math.floor(sampleRate * seconds);
+  const out = new Float32Array(length);
+  const line = new Float32Array(period);
+  let seed = 1234567 + midi * 7919;
+  const rand = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 2 ** 31 - 1;
+  };
+  // Softened noise burst = a pick that isn't razor-sharp.
+  let prev = 0;
+  for (let i = 0; i < period; i++) {
+    prev = prev * 0.5 + rand() * 0.5;
+    line[i] = prev;
+  }
+  // Higher strings ring shorter and duller than low ones, as on a real guitar.
+  const loss = 0.9965 - Math.min(0.003, Math.max(0, (midi - 40) * 0.00005));
+  let idx = 0;
+  let last = line[0];
+  for (let i = 0; i < length; i++) {
+    const cur = line[idx];
+    out[i] = cur;
+    line[idx] = 0.5 * (cur + last) * loss;
+    last = cur;
+    idx = (idx + 1) % period;
+  }
+  let peak = 0;
+  for (let i = 0; i < length; i++) peak = Math.max(peak, Math.abs(out[i]));
+  const gain = peak > 0 ? 0.6 / peak : 1;
+  const fade = Math.floor(sampleRate * 0.3);
+  for (let i = 0; i < length; i++) out[i] *= gain * (i > length - fade ? (length - i) / fade : 1);
+  return out;
 }
 
 /**
- * A small pool of individual `Tone.PluckSynth` voices (Karplus-Strong, one "string" each), since
- * PluckSynth isn't a `Monophonic` voice and so can't be wrapped in `Tone.PolySynth`. Notes are
- * assigned to strings round-robin; a pluck decays on its own, so there is no explicit release.
- * Its own gain is trimmed down further than other instruments: six strings ringing together are
- * louder than they look, since nothing here shapes them into a single chord envelope the way a
- * sampler or PolySynth voice does.
+ * The guitar: Karplus-Strong plucks pre-rendered into a `Tone.Sampler`, one sample every
+ * semitone. Unlike `Tone.PluckSynth` (one shared noise source and delay line per instance, so
+ * simultaneous or closely-spaced notes interfere and per-note timing is unreliable) this gives
+ * true polyphony, exact scheduling and a natural decay, so block/strum/arpeggio patterns
+ * are all audibly different.
  */
-class PluckVoice {
-  private strings: Tone.PluckSynth[];
-  private next = 0;
+class GuitarVoice {
+  private sampler: Tone.Sampler;
 
-  constructor(count = 6) {
-    const trim = new Tone.Gain(0.6).connect(getBus());
-    this.strings = Array.from({ length: count }, () =>
-      new Tone.PluckSynth({ attackNoise: 0.8, dampening: 3000, resonance: 0.94 }).connect(trim),
-    );
-  }
-
-  triggerAttackRelease(notes: string | string[], _duration: Tone.Unit.Time, time?: Tone.Unit.Time): void {
-    for (const note of Array.isArray(notes) ? notes : [notes]) {
-      this.strings[this.next].triggerAttack(liftForPluck(note), time);
-      this.next = (this.next + 1) % this.strings.length;
+  constructor() {
+    const ctx = Tone.getContext();
+    const urls: Record<string, AudioBuffer> = {};
+    for (let midi = GUITAR_LOW; midi <= GUITAR_HIGH; midi++) {
+      const data = renderPluck(midi, ctx.sampleRate);
+      const buffer = ctx.createBuffer(1, data.length, ctx.sampleRate);
+      buffer.copyToChannel(data, 0);
+      urls[Tone.Frequency(midi, 'midi').toNote()] = buffer;
     }
+    // Warm the tone slightly: a real guitar body rolls the top end off.
+    const tone = new Tone.Filter(4200, 'lowpass').connect(getBus());
+    this.sampler = new Tone.Sampler({ urls, release: 0.25 }).connect(tone);
   }
 
-  /** No-op: a pluck can't be cut short, it just rings out. */
-  releaseAll(): void {}
+  triggerAttackRelease(notes: string | string[], duration: Tone.Unit.Time, time?: Tone.Unit.Time): void {
+    const ring = Math.max(Tone.Time(duration).toSeconds(), GUITAR_MIN_RING);
+    this.sampler.triggerAttackRelease(notes, ring, time);
+  }
+
+  releaseAll(): void {
+    this.sampler.releaseAll();
+  }
 }
 
-type Voice = Tone.Sampler | Tone.PolySynth | PluckVoice;
+type Voice = Tone.Sampler | Tone.PolySynth | GuitarVoice;
 
 const voices = new Map<InstrumentId, Voice>();
 let loadingPiano: Promise<void> | null = null;
@@ -163,7 +205,7 @@ function makeInstrument(id: InstrumentId): Voice {
         envelope: { attack: 0.8, decay: 0.6, sustain: 0.8, release: 2.2 },
       }).connect(getBus());
     case 'guitar':
-      return new PluckVoice();
+      return new GuitarVoice();
     case 'piano':
       return makeFallbackPiano(); // replaced once samples load
   }

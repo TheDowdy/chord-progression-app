@@ -19,7 +19,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { chordName } from '../theory/chords';
 import { pianoVoicing } from '../theory/voicings';
 import { previewChord } from '../audio/engine';
-import { useStore } from '../state/store';
+import { BEATS_MAX, useStore } from '../state/store';
 import type { ChordEvent, Section } from '../types';
 import ChordDetail from './ChordDetail';
 import FlavorPicker from './FlavorPicker';
@@ -32,6 +32,9 @@ const ORIGIN_COLOR = {
 
 const QUICK_ADD = ['Verse', 'Chorus', 'Bridge'];
 
+/** Width of one beat on the timeline; a chord block is `beats × BEAT_PX` wide. */
+const BEAT_PX = 52;
+
 function ChordSlot({
   event,
   sectionId,
@@ -39,11 +42,7 @@ function ChordSlot({
   cumulativeBeats,
   active,
   playing,
-  editingFlavor,
-  editingDetail,
   replacing,
-  onOpenFlavor,
-  onOpenDetail,
 }: {
   event: ChordEvent;
   sectionId: string;
@@ -51,127 +50,147 @@ function ChordSlot({
   cumulativeBeats: number;
   active: boolean;
   playing: boolean;
-  editingFlavor: boolean;
-  editingDetail: boolean;
   replacing: boolean;
-  onOpenFlavor: (id: string | null) => void;
-  onOpenDetail: (id: string | null) => void;
 }) {
   const isPlaying = useStore((s) => s.isPlaying);
   const instrument = useStore((s) => s.song.instrument);
   const selectEvent = useStore((s) => s.selectEvent);
-  const removeEvent = useStore((s) => s.removeEvent);
-  const adjustEventBeats = useStore((s) => s.adjustEventBeats);
-  const startReplace = useStore((s) => s.startReplace);
-  const cancelReplace = useStore((s) => s.cancelReplace);
+  const setEventBeats = useStore((s) => s.setEventBeats);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: event.id,
     data: { sectionId },
   });
   const isBarStart = cumulativeBeats % barLength === 0;
+  const [resizeBeats, setResizeBeats] = useState<number | null>(null);
+  const shownBeats = resizeBeats ?? event.beats;
+
+  // Drag the right edge: width maps straight to a beat count, computed from the pointer's
+  // absolute position at drag start, so it never depends on a previous render's value.
+  const onResizeDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const target = e.currentTarget;
+    target.setPointerCapture(e.pointerId);
+    const startX = e.clientX;
+    const startBeats = event.beats;
+    const beatsAt = (clientX: number) => Math.max(1, Math.round(startBeats + (clientX - startX) / BEAT_PX));
+    const move = (ev: PointerEvent) => {
+      const b = beatsAt(ev.clientX);
+      setResizeBeats(b);
+      setEventBeats(event.id, b);
+    };
+    const up = () => {
+      target.removeEventListener('pointermove', move);
+      target.removeEventListener('pointerup', up);
+      target.removeEventListener('pointercancel', up);
+      setResizeBeats(null);
+    };
+    target.addEventListener('pointermove', move);
+    target.addEventListener('pointerup', up);
+    target.addEventListener('pointercancel', up);
+  };
+
+  const onResizeKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') setEventBeats(event.id, event.beats + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') setEventBeats(event.id, event.beats - 1);
+    else return;
+    e.preventDefault();
+  };
 
   return (
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className={`snap-start shrink-0 ${isBarStart ? 'border-l-2 border-line pl-2' : ''}`}
+      className={`snap-start shrink-0 ${isBarStart ? 'border-l-2 border-line pl-1.5' : ''}`}
     >
       <div
-        className={`relative flex h-24 w-28 shrink-0 flex-col items-center justify-center rounded-xl border-2 text-center transition-colors ${
+        className={`relative h-24 shrink-0 overflow-hidden rounded-xl border-2 text-center transition-colors ${
           playing ? 'bg-accent text-accent-fg' : 'bg-surface-2'
         } ${replacing ? 'ring-2 ring-offset-1 ring-[var(--accent)]' : ''}`}
-        style={{ borderColor: active ? 'var(--accent)' : ORIGIN_COLOR[event.chord.origin] }}
-        {...attributes}
-        {...listeners}
+        style={{
+          width: shownBeats * BEAT_PX,
+          borderColor: active ? 'var(--accent)' : ORIGIN_COLOR[event.chord.origin],
+          // faint tick at every beat boundary, so the block reads as a length
+          backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${BEAT_PX - 1}px, var(--line) ${BEAT_PX - 1}px, var(--line) ${BEAT_PX}px)`,
+        }}
       >
         <button
           onClick={() => {
             selectEvent(event.id);
             if (!isPlaying) void previewChord(pianoVoicing(event.chord), instrument);
           }}
+          {...attributes}
+          {...listeners}
           aria-pressed={active}
-          aria-label={`Chord: ${chordName(event.chord)}, ${event.chord.numeral}`}
-          className="absolute inset-0 rounded-xl"
-        />
-        <span className="pointer-events-none text-lg font-bold leading-tight">{chordName(event.chord)}</span>
-        <span className={`pointer-events-none text-sm ${playing ? '' : 'text-muted'}`}>{event.chord.numeral}</span>
-
-        <div className="pointer-events-auto mt-1 flex items-center gap-1">
-          <button
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              adjustEventBeats(event.id, -1);
-            }}
-            aria-label="Fewer beats"
-            className="grid size-7 place-items-center rounded-full text-sm leading-none opacity-70 hover:bg-surface hover:opacity-100"
-          >
-            –
-          </button>
-          <span className={`pointer-events-none text-[11px] ${playing ? '' : 'text-muted'}`}>{event.beats} beats</span>
-          <button
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              adjustEventBeats(event.id, 1);
-            }}
-            aria-label="More beats"
-            className="grid size-7 place-items-center rounded-full text-sm leading-none opacity-70 hover:bg-surface hover:opacity-100"
-          >
-            +
-          </button>
+          aria-label={`Chord: ${chordName(event.chord)}, ${event.chord.numeral}, ${event.beats} beats`}
+          className="absolute inset-0 flex flex-col items-center justify-center pr-3 touch-none"
+        >
+          <span className="text-base font-bold leading-tight">{chordName(event.chord)}</span>
+          <span className={`text-xs ${playing ? '' : 'text-muted'}`}>{event.chord.numeral}</span>
+          <span className={`mt-1 text-lg font-semibold leading-none ${playing ? '' : 'text-muted'}`}>{shownBeats}</span>
+        </button>
+        <div
+          role="slider"
+          tabIndex={0}
+          aria-label={`Length of ${chordName(event.chord)} in beats`}
+          aria-valuemin={1}
+          aria-valuenow={event.beats}
+          aria-valuemax={BEATS_MAX}
+          onPointerDown={onResizeDown}
+          onKeyDown={onResizeKey}
+          className="absolute right-0 top-0 flex h-full w-3 cursor-ew-resize touch-none items-center justify-center bg-black/10 hover:bg-black/25"
+        >
+          <span className="h-6 w-0.5 rounded bg-current opacity-60" />
         </div>
-
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenFlavor(editingFlavor ? null : event.id);
-          }}
-          aria-label={`Change flavor of ${chordName(event.chord)}`}
-          aria-pressed={editingFlavor}
-          className="absolute left-0.5 top-0.5 grid size-6 place-items-center rounded-full text-xs leading-none opacity-70 hover:opacity-100"
-        >
-          ⚙
-        </button>
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenDetail(editingDetail ? null : event.id);
-          }}
-          aria-label={`Expand ${chordName(event.chord)}: piano or guitar`}
-          aria-pressed={editingDetail}
-          className="absolute left-7 top-0.5 grid size-6 place-items-center rounded-full text-xs leading-none opacity-70 hover:opacity-100"
-        >
-          ⛶
-        </button>
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            replacing ? cancelReplace() : startReplace(event.id);
-          }}
-          aria-label={replacing ? 'Cancel replace' : `Replace ${chordName(event.chord)}`}
-          aria-pressed={replacing}
-          className="absolute right-7 top-0.5 grid size-6 place-items-center rounded-full text-xs leading-none opacity-70 hover:opacity-100"
-        >
-          ⇄
-        </button>
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            removeEvent(event.id);
-          }}
-          aria-label={`Remove ${chordName(event.chord)}`}
-          className="absolute right-0.5 top-0.5 grid size-6 place-items-center rounded-full text-base leading-none opacity-70 hover:opacity-100"
-        >
-          ×
-        </button>
       </div>
     </li>
+  );
+}
+
+/** Actions for the selected chord, shown once below the row so blocks can stay narrow. */
+function ChordToolbar({
+  event,
+  flavorOpen,
+  detailOpen,
+  replacing,
+  onFlavor,
+  onDetail,
+}: {
+  event: ChordEvent;
+  flavorOpen: boolean;
+  detailOpen: boolean;
+  replacing: boolean;
+  onFlavor: () => void;
+  onDetail: () => void;
+}) {
+  const removeEvent = useStore((s) => s.removeEvent);
+  const setEventBeats = useStore((s) => s.setEventBeats);
+  const startReplace = useStore((s) => s.startReplace);
+  const cancelReplace = useStore((s) => s.cancelReplace);
+  const btn = 'rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium hover:bg-surface-2 aria-pressed:border-accent';
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2" aria-label={`Actions for ${chordName(event.chord)}`}>
+      <span className="text-sm font-semibold">{chordName(event.chord)}</span>
+      <label className="flex items-center gap-1 text-sm text-muted">
+        Beats
+        <input
+          type="number"
+          min={1}
+          max={BEATS_MAX}
+          value={event.beats}
+          onChange={(e) => setEventBeats(event.id, Number(e.target.value))}
+          aria-label="Beats for selected chord"
+          className="w-16 rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-fg"
+        />
+      </label>
+      <button onClick={onFlavor} aria-pressed={flavorOpen} className={btn}>Flavor</button>
+      <button onClick={onDetail} aria-pressed={detailOpen} className={btn}>Piano / guitar</button>
+      <button onClick={() => (replacing ? cancelReplace() : startReplace(event.id))} aria-pressed={replacing} className={btn}>
+        {replacing ? 'Cancel replace' : 'Replace'}
+      </button>
+      <button onClick={() => removeEvent(event.id)} className={btn}>Remove</button>
+    </div>
   );
 }
 
@@ -212,8 +231,9 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
     cumulative += event.beats;
     return { event, offset };
   });
-  const flavorEvent = section.events.find((e) => e.id === flavorId);
-  const detailEvent = section.events.find((e) => e.id === detailId);
+  const toolbarEvent = section.events.find((e) => e.id === selectedId);
+  const flavorEvent = section.events.find((e) => e.id === flavorId && e.id === selectedId);
+  const detailEvent = section.events.find((e) => e.id === detailId && e.id === selectedId);
 
   return (
     <section
@@ -294,23 +314,29 @@ function SectionBlock({ section, isOnly, index, total }: { section: Section; isO
                 cumulativeBeats={offset}
                 active={event.id === activeId}
                 playing={isPlaying && event.id === playingId}
-                editingFlavor={event.id === flavorId}
-                editingDetail={event.id === detailId}
                 replacing={event.id === replaceTargetId}
-                onOpenFlavor={(id) => {
-                  setDetailId(null);
-                  setFlavorId(id);
-                }}
-                onOpenDetail={(id) => {
-                  setFlavorId(null);
-                  setDetailId(id);
-                }}
               />
             ))}
           </ol>
         </SortableContext>
       )}
 
+      {toolbarEvent && (
+        <ChordToolbar
+          event={toolbarEvent}
+          flavorOpen={toolbarEvent.id === flavorId}
+          detailOpen={toolbarEvent.id === detailId}
+          replacing={toolbarEvent.id === replaceTargetId}
+          onFlavor={() => {
+            setDetailId(null);
+            setFlavorId(flavorId === toolbarEvent.id ? null : toolbarEvent.id);
+          }}
+          onDetail={() => {
+            setFlavorId(null);
+            setDetailId(detailId === toolbarEvent.id ? null : toolbarEvent.id);
+          }}
+        />
+      )}
       {flavorEvent && (
         <div className="mt-2">
           <FlavorPicker
